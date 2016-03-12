@@ -13,11 +13,10 @@ import Network.HTTP.Types
 
 import Data.Text (Text, pack, unpack)
 import Data.Aeson
-import Data.Monoid ((<>))
+import Data.Monoid
 
-import Control.Monad (liftM, mzero)
-import Control.Monad.IO.Class (liftIO)
-import Control.Applicative ((<$>), (<*>))
+import Control.Monad
+import Control.Monad.IO.Class
 
 startTraining :: Maybe Int -> Maybe Board -> Vindinium State
 startTraining mi mb = do
@@ -32,7 +31,6 @@ move :: State -> Dir -> Vindinium State
 move s d = do
     let url = statePlayUrl s
         obj = object [("dir", toJSON d)]
-
     request url obj
 
 
@@ -40,7 +38,6 @@ startArena :: Vindinium State
 startArena = do
     url <- startUrl "arena"
     let obj = object []
-
     request url obj
 
 startUrl :: Text -> Vindinium Text
