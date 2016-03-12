@@ -47,7 +47,6 @@ startUrl v = liftM (\x -> x <> "/api/" <> v) $ asks settingsUrl
 request :: Text -> Value -> Vindinium State
 request url val = do
     key <- asks settingsKey
-
     initReq <- liftIO $ parseUrl $ unpack url
     let req = initReq
                 { method = "POST"
@@ -61,8 +60,8 @@ request url val = do
                 }
 
     liftIO $ do
-        withManager defaultManagerSettings $ \mgr ->
-            (decodeBody . responseBody) <$> httpLbs req mgr
+        mgr <- newManager defaultManagerSettings
+        (decodeBody . responseBody) <$> httpLbs req mgr
 
   where
     jsonBody = RequestBodyLBS . encode
