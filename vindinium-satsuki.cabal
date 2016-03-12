@@ -25,3 +25,4 @@ executable vindinium-satsuki
                   , http-types
                   , http-client
                   , optparse-applicative >= 0.11.0
+                  , resourcet
