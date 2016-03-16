@@ -1,4 +1,5 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings, RankNTypes, FlexibleContexts, ScopedTypeVariables, TypeOperators, ConstraintKinds, FlexibleInstances, PartialTypeSignatures, NamedWildCards #-}
 module Vindinium.Types
         ( Vindinium
         , runVindinium
@@ -27,6 +28,11 @@ import Data.Monoid
 import Control.Monad
 import Control.Monad.IO.Class
 
+import qualified Control.Eff as E
+import qualified Control.Eff.State.Strict as E
+import qualified Control.Eff.Reader.Strict as E
+import qualified Control.Eff.Lift as E
+
 newtype Key = Key Text deriving (Show, Eq)
 
 data Settings = Settings {
@@ -36,6 +42,24 @@ data Settings = Settings {
 
 newtype Vindinium a = Vindinium { unVindinium :: ReaderT Settings IO a }
     deriving (Functor, Applicative, Monad, MonadReader Settings, MonadIO)
+
+data VdmState = VState
+
+data VdmConfig = VConfig
+  { vcKey :: Key
+  , vcUrl :: Text
+  }
+
+type VdmEff r =
+  ( E.SetMember E.State (E.State VdmState) r
+  , E.SetMember E.Reader (E.Reader VdmConfig) r
+  , E.SetMember E.Lift (E.Lift IO) r
+  )
+
+-- we no longer have loss constraint because it's a use site.
+-- but we can let type inference do it for us.
+runVdmEff :: VdmConfig -> VdmState -> E.Eff _r a -> IO (VdmState, a)
+runVdmEff c s m = E.runLift (E.runState s (E.runReader m c))
 
 runVindinium :: Settings -> Vindinium a -> IO a
 runVindinium s = flip runReaderT s . unVindinium
@@ -103,7 +127,7 @@ instance ToJSON Key where
 
 instance ToJSON Board where
     toJSON b  = object [ "size"  .= boardSize b
-                       , "tiles" .= (printTiles $ boardTiles b)
+                       , "tiles" .= printTiles (boardTiles b)
                        ]
 
 instance FromJSON State where

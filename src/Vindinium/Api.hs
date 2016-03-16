@@ -34,7 +34,6 @@ move s d = do
         obj = object [("dir", toJSON d)]
     request url obj
 
-
 startArena :: Vindinium State
 startArena = do
     url <- startUrl "arena"
@@ -73,6 +72,4 @@ request url val = do
             (Object b) = object [("key", toJSON k)]
         in
             Object (a <> b)
-
-
 

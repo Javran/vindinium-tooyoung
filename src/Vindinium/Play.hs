@@ -20,3 +20,4 @@ playLoop bot state =
         else do
             newState <- bot state >>= move state
             playLoop bot newState
+
