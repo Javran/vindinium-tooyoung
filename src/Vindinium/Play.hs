@@ -1,38 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vindinium.Play
-        ( playTraining
-        , playArena
-        , playTrainingEff
-        , playArenaEff
-        )
+       ( playTrainingEff
+       , playArenaEff
+       )
     where
 
 import Vindinium.Types
-import Vindinium.Api
 import Network.HTTP.Client
 import Network.HTTP.Types
 import Control.Monad.Trans.Resource
-import Data.Text (Text, unpack, pack)
+import Data.Text (Text, unpack)
 import Control.Monad.IO.Class
 import Control.Eff.Lift
 import Data.Monoid
 
 import Data.Aeson
 import Vindinium.VdmEff
-
-playTraining :: Maybe Int -> Maybe Board -> Bot -> Vindinium State
-playTraining mt mb b = startTraining mt mb >>= playLoop b
-
-playArena :: Bot -> Vindinium State
-playArena b = startArena >>= playLoop b
-
-playLoop :: Bot -> State -> Vindinium State
-playLoop bot state =
-    if (gameFinished . stateGame) state
-        then return state
-        else do
-            newState <- bot state >>= move state
-            playLoop bot newState
 
 playTrainingEff :: Maybe Int -> Maybe Board -> (State -> VdmEff Dir) -> VdmEff VdmState
 playTrainingEff mt mb b = startTrainingEff mt mb >>= playLoopEff b
@@ -111,4 +94,4 @@ request' key url val = do
             (Object b) = object [("key", toJSON k)]
         in
             Object (a <> b)
-
+    injectKey _ _ = error "impossible"

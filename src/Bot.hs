@@ -4,20 +4,7 @@ module Bot
 import Vindinium
 import Vindinium.VdmEff
 
-import System.Random (getStdRandom, randomR)
-import Data.Maybe (fromJust)
-import Control.Monad (liftM)
-import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Random
-
-bot :: Bot
-bot = randomBot
-
-myBot :: Bot
-myBot = error "it's up to you :)"
-
-randomBot :: Bot
-randomBot _ = liftM fromJust $ liftIO $ pickRandom [Stay, North, South, East, West]
 
 randomBot' :: State -> VdmEff Dir
 randomBot' _ = do

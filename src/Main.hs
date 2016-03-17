@@ -7,7 +7,7 @@ import Vindinium
 import Bot
 
 import Data.String (fromString)
-import Data.Text (pack, unpack)
+import Data.Text (pack)
 
 import Vindinium.VdmEff
 
@@ -39,16 +39,6 @@ cmd = subparser
         (progDesc "Run bot in arena mode" ))
     )
 
-runCmd :: Cmd -> IO ()
-runCmd c  = do
-
-    s <- runVindinium (cmdSettings c) $
-        case c of
-            (Training _ t b) -> playTraining t b bot
-            (Arena _)        -> playArena bot
-
-    putStrLn $ "Game finished: " ++ unpack (stateViewUrl s)
-
 runCmdEff :: Cmd -> IO ()
 runCmdEff c  = do
     let vdmConfig = (VConfig <$> settingsKey <*> settingsUrl) $ cmdSettings c
@@ -57,8 +47,6 @@ runCmdEff c  = do
             (Training _ t b) -> playTrainingEff t b randomBot'
             (Arena _)        -> playArenaEff randomBot'
     print s
-    -- putStrLn $ "Game finished: " ++ unpack (stateViewUrl s)
-
 
 main :: IO ()
 main =

@@ -1,12 +1,8 @@
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings, RankNTypes, FlexibleContexts, ScopedTypeVariables, TypeOperators, ConstraintKinds, FlexibleInstances, PartialTypeSignatures, NamedWildCards #-}
 module Vindinium.Types
-        ( Vindinium
-        , runVindinium
-        , asks
-        , Settings (..)
+        ( Settings (..)
         , Key (..)
-        , Bot
         , State (..)
         , GameId (..)
         , Game (..)
@@ -22,16 +18,9 @@ module Vindinium.Types
 import qualified Data.Text as T
 import Data.Text (Text)
 
-import Control.Monad.Reader (MonadReader, ReaderT, runReaderT, asks)
 import Data.Aeson
 import Data.Monoid
 import Control.Monad
-import Control.Monad.IO.Class
-
-import qualified Control.Eff as E
-import qualified Control.Eff.State.Strict as E
-import qualified Control.Eff.Reader.Strict as E
-import qualified Control.Eff.Lift as E
 
 newtype Key = Key Text deriving (Show, Eq)
 
@@ -39,14 +28,6 @@ data Settings = Settings {
     settingsKey :: Key
   , settingsUrl :: Text
 } deriving (Show, Eq)
-
-newtype Vindinium a = Vindinium { unVindinium :: ReaderT Settings IO a }
-    deriving (Functor, Applicative, Monad, MonadReader Settings, MonadIO)
-
-runVindinium :: Settings -> Vindinium a -> IO a
-runVindinium s = flip runReaderT s . unVindinium
-
-type Bot = State -> Vindinium Dir
 
 data State = State {
     stateGame    :: Game
