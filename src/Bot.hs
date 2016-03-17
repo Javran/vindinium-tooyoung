@@ -5,7 +5,7 @@ import Vindinium.Vdm
 
 import Control.Monad.Random
 
-randomBot :: State -> Vdm Dir
+randomBot :: GameState -> Vdm Dir
 randomBot _ = do
     let candidates = [Stay, North, South, East, West]
     idx <- io $ getRandomR (0, length candidates-1)

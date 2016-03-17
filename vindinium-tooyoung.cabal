@@ -30,3 +30,5 @@ executable vdm-ty
                      , resourcet
                      , extensible-effects
                      , MonadRandom
+                     , data-default
+                     , unordered-containers

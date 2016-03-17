@@ -9,25 +9,25 @@ import Bot
 import Data.String (fromString)
 import Data.Text (pack)
 
-data Cmd = Training Settings (Maybe Int) (Maybe Board)
-         | Arena Settings
-         deriving (Show, Eq)
+-- data Cmd = Training Settings (Maybe Int) (Maybe Board)
+--         | Arena Settings
+--         deriving (Show, Eq)
+type Cmd = (Settings, GameMode)
 
 cmdSettings :: Cmd -> Settings
-cmdSettings (Training s _ _) = s
-cmdSettings (Arena s) = s
+cmdSettings = fst
 
 settings :: Parser Settings
 settings = Settings <$> argument (pack <$> str) (metavar "KEY")
                     <*> (fromString <$> strOption (long "url" <> value "http://vindinium.org"))
 
 trainingCmd :: Parser Cmd
-trainingCmd = Training <$> settings
-                       <*> optional (option auto (long "turns"))
-                       <*> pure Nothing
+trainingCmd = (,) <$> settings
+                  <*> (GMTraining <$> optional (option auto (long "turns"))
+                                  <*> pure Nothing)
 
 arenaCmd :: Parser Cmd
-arenaCmd = Arena <$> settings
+arenaCmd = (,) <$> settings <*> pure GMArena
 
 cmd :: Parser Cmd
 cmd = subparser
@@ -39,11 +39,8 @@ cmd = subparser
 
 runCmd :: Cmd -> IO ()
 runCmd c  = do
-    let vdmConfig = (VConfig <$> settingsKey <*> settingsUrl) $ cmdSettings c
-    s <- runVdm vdmConfig VState $
-        case c of
-            (Training _ t b) -> playTraining t b randomBot
-            (Arena _)        -> playArena randomBot
+    let cfg = (vdmConfig <$> settingsKey <*> settingsUrl) $ cmdSettings c
+    s <- runVdm cfg VState $ playGame (snd c) randomBot
     print s
 
 main :: IO ()
