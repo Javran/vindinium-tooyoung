@@ -23,3 +23,7 @@ cabal install
 vindinium training [--turns 10] [--url http://custom.vindinium.url]
 vindinium arena [--url http://custom.vindinium.url]
 ```
+
+
+TODO: put key in a single file `key`,
+the program will read from it instead of having to provide it every time

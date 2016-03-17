@@ -1,5 +1,4 @@
-{-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings, RankNTypes, FlexibleContexts, ScopedTypeVariables, TypeOperators, ConstraintKinds, FlexibleInstances, PartialTypeSignatures, NamedWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Vindinium.Types
         ( Settings (..)
         , Key (..)

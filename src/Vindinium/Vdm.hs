@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts, PartialTypeSignatures, NamedWildCards #-}
-module Vindinium.VdmEff where
+module Vindinium.Vdm where
 
 import Vindinium.Types hiding (State)
 import qualified Vindinium.Types as VT
@@ -21,16 +21,16 @@ data VdmConfig = VConfig
   , vcUrl :: T.Text
   } deriving (Show)
 
-type VdmEff a = Eff
+type Vdm a = Eff
   (  Reader VdmConfig
   :> State VdmState
   :> Lift (ResourceT IO)
   :> Void) a
 
-type BotE = VT.State -> VdmEff Dir
+type BotE = VT.State -> Vdm Dir
 
-runVdmEff :: VdmConfig -> VdmState -> VdmEff a -> IO (VdmState, a)
-runVdmEff c s m = runResourceT (runLift (runState s (runReader m c)))
+runVdm :: VdmConfig -> VdmState -> Vdm a -> IO (VdmState, a)
+runVdm c s m = runResourceT (runLift (runState s (runReader m c)))
 
 io :: MonadIO m => IO a -> m a
 io = liftIO

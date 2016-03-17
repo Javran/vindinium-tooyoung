@@ -15,15 +15,15 @@ import Control.Eff.Lift
 import Data.Monoid
 
 import Data.Aeson
-import Vindinium.VdmEff
+import Vindinium.Vdm
 
-playTrainingEff :: Maybe Int -> Maybe Board -> (State -> VdmEff Dir) -> VdmEff VdmState
+playTrainingEff :: Maybe Int -> Maybe Board -> (State -> Vdm Dir) -> Vdm VdmState
 playTrainingEff mt mb b = startTrainingEff mt mb >>= playLoopEff b
 
-playArenaEff :: (State -> VdmEff Dir) -> VdmEff VdmState
+playArenaEff :: (State -> Vdm Dir) -> Vdm VdmState
 playArenaEff b = startArenaEff >>= playLoopEff b
 
-playLoopEff :: (State -> VdmEff Dir) -> State -> VdmEff VdmState
+playLoopEff :: (State -> Vdm Dir) -> State -> Vdm VdmState
 playLoopEff bot state =
     if (gameFinished . stateGame) state
         then getVState
@@ -34,7 +34,7 @@ playLoopEff bot state =
             newState <- bot state >>= moveEff state
             playLoopEff bot newState
 
-startTrainingEff:: Maybe Int -> Maybe Board -> VdmEff State
+startTrainingEff:: Maybe Int -> Maybe Board -> Vdm State
 startTrainingEff mi mb = do
     (Key key) <- vcKey <$> askVConfig
     url <- startUrlEff "training"
@@ -45,7 +45,7 @@ startTrainingEff mi mb = do
     io $ putStrLn $ "url is: " ++ (unpack . stateViewUrl $ s)
     return s
 
-startArenaEff :: VdmEff State
+startArenaEff :: Vdm State
 startArenaEff = do
     (Key key) <- vcKey <$> askVConfig
     url <- startUrlEff "arena"
@@ -54,12 +54,12 @@ startArenaEff = do
     io $ putStrLn $ "url is: " ++ (unpack . stateViewUrl $ s)
     return s
 
-startUrlEff :: Text -> VdmEff Text
+startUrlEff :: Text -> Vdm Text
 startUrlEff v = do
     url <- vcUrl <$> askVConfig
     return $ (\x -> x <> "/api/" <> v) url
 
-moveEff :: State -> Dir -> VdmEff State
+moveEff :: State -> Dir -> Vdm State
 moveEff s d = do
     (Key key) <- vcKey <$> askVConfig
     let url = statePlayUrl s -- TODO: what we need is just the URL

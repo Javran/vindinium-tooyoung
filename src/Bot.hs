@@ -1,13 +1,12 @@
-module Bot
-    where
+module Bot where
 
 import Vindinium
-import Vindinium.VdmEff
+import Vindinium.Vdm
 
 import Control.Monad.Random
 
-randomBot' :: State -> VdmEff Dir
-randomBot' _ = do
+randomBot :: State -> Vdm Dir
+randomBot _ = do
     let candidates = [Stay, North, South, East, West]
     idx <- io $ getRandomR (0, length candidates-1)
     return (candidates !! idx)

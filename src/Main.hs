@@ -1,15 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Main (main) where
+module Main where
 
 import Options.Applicative
-
 import Vindinium
+import Vindinium.Vdm
 import Bot
 
 import Data.String (fromString)
 import Data.Text (pack)
-
-import Vindinium.VdmEff
 
 data Cmd = Training Settings (Maybe Int) (Maybe Board)
          | Arena Settings
@@ -39,17 +37,17 @@ cmd = subparser
         (progDesc "Run bot in arena mode" ))
     )
 
-runCmdEff :: Cmd -> IO ()
-runCmdEff c  = do
+runCmd :: Cmd -> IO ()
+runCmd c  = do
     let vdmConfig = (VConfig <$> settingsKey <*> settingsUrl) $ cmdSettings c
-    s <- runVdmEff vdmConfig VState $
+    s <- runVdm vdmConfig VState $
         case c of
-            (Training _ t b) -> playTrainingEff t b randomBot'
-            (Arena _)        -> playArenaEff randomBot'
+            (Training _ t b) -> playTrainingEff t b randomBot
+            (Arena _)        -> playArenaEff randomBot
     print s
 
 main :: IO ()
 main =
-    execParser opts >>= runCmdEff
+    execParser opts >>= runCmd
   where
     opts = info (cmd <**> helper) idm
