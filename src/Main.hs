@@ -9,6 +9,8 @@ import Bot
 import Data.String (fromString)
 import Data.Text (pack, unpack)
 
+import Vindinium.VdmEff
+
 data Cmd = Training Settings (Maybe Int) (Maybe Board)
          | Arena Settings
          deriving (Show, Eq)
@@ -39,6 +41,7 @@ cmd = subparser
 
 runCmd :: Cmd -> IO ()
 runCmd c  = do
+
     s <- runVindinium (cmdSettings c) $
         case c of
             (Training _ t b) -> playTraining t b bot
@@ -46,8 +49,19 @@ runCmd c  = do
 
     putStrLn $ "Game finished: " ++ unpack (stateViewUrl s)
 
+runCmdEff :: Cmd -> IO ()
+runCmdEff c  = do
+    let vdmConfig = (VConfig <$> settingsKey <*> settingsUrl) $ cmdSettings c
+    s <- runVdmEff vdmConfig VState $
+        case c of
+            (Training _ t b) -> playTrainingEff t b randomBot'
+            (Arena _)        -> playArenaEff randomBot'
+    print s
+    -- putStrLn $ "Game finished: " ++ unpack (stateViewUrl s)
+
+
 main :: IO ()
 main =
-    execParser opts >>= runCmd
+    execParser opts >>= runCmdEff
   where
     opts = info (cmd <**> helper) idm

@@ -1,14 +1,14 @@
 module Bot
-        ( bot
-        )
     where
 
 import Vindinium
+import Vindinium.VdmEff
 
 import System.Random (getStdRandom, randomR)
 import Data.Maybe (fromJust)
 import Control.Monad (liftM)
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Random
 
 bot :: Bot
 bot = randomBot
@@ -18,6 +18,12 @@ myBot = error "it's up to you :)"
 
 randomBot :: Bot
 randomBot _ = liftM fromJust $ liftIO $ pickRandom [Stay, North, South, East, West]
+
+randomBot' :: State -> VdmEff Dir
+randomBot' _ = do
+    let candidates = [Stay, North, South, East, West]
+    idx <- io $ getRandomR (0, length candidates-1)
+    return (candidates !! idx)
 
 inBoard :: Board -> Pos -> Bool
 inBoard b (Pos x y) =
