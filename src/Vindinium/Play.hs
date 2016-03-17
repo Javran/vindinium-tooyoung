@@ -29,7 +29,9 @@ playLoop bot state =
         else do
             let turn = gameTurn . stateGame $ state
                 maxTurn = gameMaxTurns . stateGame $ state
-            io $ putStrLn $ "Playing turn: " ++ show turn ++ " / " ++ show maxTurn
+            io $ do
+                putStrLn $ "Playing turn: " ++ show turn ++ " / " ++ show maxTurn
+                pprBoard (gameBoard . stateGame $ state)
             newState <- bot state >>= move (statePlayUrl state)
             playLoop bot newState
 

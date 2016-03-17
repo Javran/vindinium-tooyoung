@@ -12,14 +12,16 @@ module Vindinium.Types
   , Pos(..)
   , Dir(..)
   , GameMode(..)
+  , pprBoard
   ) where
 
 import qualified Data.Text as T
 import Data.Text (Text, pack, unpack)
 
 import Data.Aeson
-import Data.Monoid
 import Control.Monad
+import Data.Char
+import Data.List.Split
 
 type Key = Text
 type Url = Text
@@ -71,7 +73,7 @@ data Hero = Hero
 
 data Board = Board
   { boardSize  :: Int
-  , boardTiles :: [Tile]
+  , boardTiles :: [Tile] -- TODO: efficient board data structure?
   } deriving (Show, Eq)
 
 data Tile
@@ -150,27 +152,35 @@ instance FromJSON Dir where
 
 parseBoard :: Int -> String -> Board
 parseBoard s t =
-    Board s $ map parse (chunks t)
+    Board s $ map parse (chunksOf 2 t)
   where
-    chunks []       = []
-    chunks (_:[])   = error "chunks: even chars number"
-    chunks (a:b:xs) = (a, b):chunks xs
 
-    parse (' ', ' ') = FreeTile
-    parse ('#', '#') = WoodTile
-    parse ('@', x)   = HeroTile $ read [x]
-    parse ('[', ']') = TavernTile
-    parse ('$', '-') = MineTile Nothing
-    parse ('$', x)   = MineTile $ Just $ read [x]
-    parse (a, b)     = error $ "parse: unknown tile pattern " ++ (show $ a:b:[])
+    parse "  " = FreeTile
+    parse "##" = WoodTile
+    parse "[]" = TavernTile
+    parse (xs@[a,b])
+        | a == '@' = HeroTile $ ord b - ord '0'
+        | a == '$' = MineTile (case b of
+                                   '-' -> Nothing
+                                   _ -> Just (ord b - ord '0'))
+        | otherwise = error $ "parse: unknown tile pattern " ++ show xs
+    parse _ = error "impossible"
 
 printTiles :: [Tile] -> Text
-printTiles =
-    foldl (<>) "" . map printTile
-  where
-    printTile FreeTile = "  "
-    printTile WoodTile = "##"
-    printTile (HeroTile i) = "@" <> (T.pack $ show i)
-    printTile TavernTile = "[]"
-    printTile (MineTile Nothing) = "$-"
-    printTile (MineTile (Just i)) = "$" <> (T.pack $ show i)
+printTiles = foldMap (T.pack . printTile)
+
+printTile :: Tile -> String
+printTile FreeTile = "  "
+printTile WoodTile = "##"
+printTile (HeroTile i) = "@" ++ show i
+printTile TavernTile = "[]"
+printTile (MineTile Nothing) = "$-"
+printTile (MineTile (Just i)) = "$" ++ show i
+
+pprBoard :: Board -> IO ()
+pprBoard (Board s t) = do
+    let rows = chunksOf s t
+    putStrLn $ replicate 10 '=' ++ "Board"
+    mapM_ (putStrLn . concatMap printTile) rows
+    putStrLn ""
+

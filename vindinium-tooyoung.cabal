@@ -32,3 +32,4 @@ executable vdm-ty
                      , MonadRandom
                      , data-default
                      , unordered-containers
+                     , split
