@@ -1,18 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Vindinium.Types
-        ( Settings (..)
-        , Key (..)
-        , State (..)
-        , GameId (..)
-        , Game (..)
-        , HeroId (..)
-        , Hero (..)
-        , Board (..)
-        , Tile (..)
-        , Pos (..)
-        , Dir (..)
-        )
-    where
+  ( Settings (..)
+  , Key (..)
+  , State (..)
+  , GameId (..)
+  , Game (..)
+  , HeroId (..)
+  , Hero (..)
+  , Board (..)
+  , Tile (..)
+  , Pos (..)
+  , Dir (..)
+  ) where
 
 import qualified Data.Text as T
 import Data.Text (Text)
@@ -21,7 +20,7 @@ import Data.Aeson
 import Data.Monoid
 import Control.Monad
 
-newtype Key = Key Text deriving (Show, Eq)
+type Key = Text
 
 data Settings = Settings {
     settingsKey :: Key
@@ -83,9 +82,6 @@ data Pos = Pos {
 
 data Dir = Stay | North | South | East | West
     deriving (Show, Eq)
-
-instance ToJSON Key where
-    toJSON (Key k) = String k
 
 instance ToJSON Board where
     toJSON b  = object [ "size"  .= boardSize b

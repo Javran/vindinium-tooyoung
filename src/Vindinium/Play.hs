@@ -32,7 +32,7 @@ playLoop bot state =
 
 startTraining:: Maybe Int -> Maybe Board -> Vdm State
 startTraining mi mb = do
-    (Key key) <- vcKey <$> askVConfig
+    key <- vcKey <$> askVConfig
     url <- startUrl "training"
     let obj = object ( maybe [] (\i -> [("turns", toJSON i)]) mi
                     <> maybe [] (\b -> [("map",  toJSON b)]) mb
@@ -43,7 +43,7 @@ startTraining mi mb = do
 
 startArena :: Vdm State
 startArena = do
-    (Key key) <- vcKey <$> askVConfig
+    key <- vcKey <$> askVConfig
     url <- startUrl "arena"
     let obj = object []
     s <- lift $ request' key url obj
@@ -57,7 +57,7 @@ startUrl v = do
 
 move :: State -> Dir -> Vdm State
 move s d = do
-    (Key key) <- vcKey <$> askVConfig
+    key <- vcKey <$> askVConfig
     let url = statePlayUrl s -- TODO: what we need is just the URL
         obj = object [("dir", toJSON d)]
     lift $ request' key url obj

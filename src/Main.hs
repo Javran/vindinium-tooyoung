@@ -18,7 +18,7 @@ cmdSettings (Training s _ _) = s
 cmdSettings (Arena s) = s
 
 settings :: Parser Settings
-settings = Settings <$> (Key <$> argument (pack <$> str) (metavar "KEY"))
+settings = Settings <$> argument (pack <$> str) (metavar "KEY")
                     <*> (fromString <$> strOption (long "url" <> value "http://vindinium.org"))
 
 trainingCmd :: Parser Cmd
