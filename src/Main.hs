@@ -42,8 +42,8 @@ runCmd c  = do
     let vdmConfig = (VConfig <$> settingsKey <*> settingsUrl) $ cmdSettings c
     s <- runVdm vdmConfig VState $
         case c of
-            (Training _ t b) -> playTrainingEff t b randomBot
-            (Arena _)        -> playArenaEff randomBot
+            (Training _ t b) -> playTraining t b randomBot
+            (Arena _)        -> playArena randomBot
     print s
 
 main :: IO ()

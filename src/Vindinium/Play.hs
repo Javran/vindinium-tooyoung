@@ -1,9 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Vindinium.Play
-       ( playTrainingEff
-       , playArenaEff
-       )
-    where
+module Vindinium.Play where
 
 import Vindinium.Types
 import Network.HTTP.Client
@@ -17,27 +13,27 @@ import Data.Monoid
 import Data.Aeson
 import Vindinium.Vdm
 
-playTrainingEff :: Maybe Int -> Maybe Board -> (State -> Vdm Dir) -> Vdm VdmState
-playTrainingEff mt mb b = startTrainingEff mt mb >>= playLoopEff b
+playTraining :: Maybe Int -> Maybe Board -> (State -> Vdm Dir) -> Vdm VdmState
+playTraining mt mb b = startTraining mt mb >>= playLoop b
 
-playArenaEff :: (State -> Vdm Dir) -> Vdm VdmState
-playArenaEff b = startArenaEff >>= playLoopEff b
+playArena :: (State -> Vdm Dir) -> Vdm VdmState
+playArena b = startArena >>= playLoop b
 
-playLoopEff :: (State -> Vdm Dir) -> State -> Vdm VdmState
-playLoopEff bot state =
+playLoop :: (State -> Vdm Dir) -> State -> Vdm VdmState
+playLoop bot state =
     if (gameFinished . stateGame) state
         then getVState
         else do
             let turn = gameTurn . stateGame $ state
                 maxTurn = gameMaxTurns . stateGame $ state
             io $ putStrLn $ "Playing turn: " ++ show turn ++ " / " ++ show maxTurn
-            newState <- bot state >>= moveEff state
-            playLoopEff bot newState
+            newState <- bot state >>= move state
+            playLoop bot newState
 
-startTrainingEff:: Maybe Int -> Maybe Board -> Vdm State
-startTrainingEff mi mb = do
+startTraining:: Maybe Int -> Maybe Board -> Vdm State
+startTraining mi mb = do
     (Key key) <- vcKey <$> askVConfig
-    url <- startUrlEff "training"
+    url <- startUrl "training"
     let obj = object ( maybe [] (\i -> [("turns", toJSON i)]) mi
                     <> maybe [] (\b -> [("map",  toJSON b)]) mb
                      )
@@ -45,22 +41,22 @@ startTrainingEff mi mb = do
     io $ putStrLn $ "url is: " ++ (unpack . stateViewUrl $ s)
     return s
 
-startArenaEff :: Vdm State
-startArenaEff = do
+startArena :: Vdm State
+startArena = do
     (Key key) <- vcKey <$> askVConfig
-    url <- startUrlEff "arena"
+    url <- startUrl "arena"
     let obj = object []
     s <- lift $ request' key url obj
     io $ putStrLn $ "url is: " ++ (unpack . stateViewUrl $ s)
     return s
 
-startUrlEff :: Text -> Vdm Text
-startUrlEff v = do
+startUrl :: Text -> Vdm Text
+startUrl v = do
     url <- vcUrl <$> askVConfig
     return $ (\x -> x <> "/api/" <> v) url
 
-moveEff :: State -> Dir -> Vdm State
-moveEff s d = do
+move :: State -> Dir -> Vdm State
+move s d = do
     (Key key) <- vcKey <$> askVConfig
     let url = statePlayUrl s -- TODO: what we need is just the URL
         obj = object [("dir", toJSON d)]
