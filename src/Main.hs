@@ -6,30 +6,23 @@ import Vindinium
 import Vindinium.Vdm
 import Bot
 
-import Data.String (fromString)
-import Data.Text (pack)
+import qualified Data.Text as T
 
--- data Cmd = Training Settings (Maybe Int) (Maybe Board)
---         | Arena Settings
---         deriving (Show, Eq)
 type Cmd = (Settings, GameMode)
 
-cmdSettings :: Cmd -> Settings
-cmdSettings = fst
+getSettings :: IO Settings
+getSettings = do
+    [keyRaw,urlRaw] <- take 2 . lines <$> readFile "settings.conf"
+    return (Settings (T.pack keyRaw) (T.pack urlRaw))
 
-settings :: Parser Settings
-settings = Settings <$> argument (pack <$> str) (metavar "KEY")
-                    <*> (fromString <$> strOption (long "url" <> value "http://vindinium.org"))
+trainingCmd :: Parser GameMode
+trainingCmd = GMTraining <$> optional (option auto (long "turns"))
+                         <*> pure Nothing
 
-trainingCmd :: Parser Cmd
-trainingCmd = (,) <$> settings
-                  <*> (GMTraining <$> optional (option auto (long "turns"))
-                                  <*> pure Nothing)
+arenaCmd :: Parser GameMode
+arenaCmd = pure GMArena
 
-arenaCmd :: Parser Cmd
-arenaCmd = (,) <$> settings <*> pure GMArena
-
-cmd :: Parser Cmd
+cmd :: Parser GameMode
 cmd = subparser
     ( command "training" (info trainingCmd
         ( progDesc "Run bot in training mode" ))
@@ -37,14 +30,15 @@ cmd = subparser
         (progDesc "Run bot in arena mode" ))
     )
 
-runCmd :: Cmd -> IO ()
-runCmd c  = do
-    let cfg = (vdmConfig <$> settingsKey <*> settingsUrl) $ cmdSettings c
-    s <- runVdm cfg VState $ playGame (snd c) randomBot
-    print s
+runCmd :: Settings -> GameMode -> IO ()
+runCmd s gm = do
+    let cfg = (vdmConfig <$> settingsKey <*> settingsUrl) s
+    state <- runVdm cfg VState $ playGame gm randomBot
+    print state
 
 main :: IO ()
-main =
-    execParser opts >>= runCmd
+main = do
+    s <- getSettings
+    execParser opts >>= runCmd s
   where
     opts = info (cmd <**> helper) idm

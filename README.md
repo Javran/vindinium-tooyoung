@@ -25,5 +25,5 @@ vindinium arena [--url http://custom.vindinium.url]
 ```
 
 
-TODO: put key in a single file `key`,
-the program will read from it instead of having to provide it every time
+put settings in a single file `settings.conf`,
+the program will read from it instead of having to provide it every time.
