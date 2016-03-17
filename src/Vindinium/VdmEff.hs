@@ -1,4 +1,5 @@
-{-# LANGUAGE TypeOperators, FlexibleContexts, PartialTypeSignatures, NamedWildCards, TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleContexts, PartialTypeSignatures, NamedWildCards #-}
 module Vindinium.VdmEff where
 
 import Vindinium.Types hiding (State)

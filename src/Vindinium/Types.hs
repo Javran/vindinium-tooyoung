@@ -42,8 +42,8 @@ newtype GameId = GameId Text
 
 data Game = Game {
     gameId       :: GameId
-  , gameTurn     :: Integer
-  , gameMaxTurns :: Integer
+  , gameTurn     :: Int
+  , gameMaxTurns :: Int
   , gameHeroes   :: [Hero]
   , gameBoard    :: Board
   , gameFinished :: Bool
@@ -56,11 +56,11 @@ data Hero = Hero {
     heroId        :: HeroId
   , heroName      :: Text
   , heroUserId    :: Maybe Text
-  , heroElo       :: Maybe Integer
+  , heroElo       :: Maybe Int
   , heroPos       :: Pos
-  , heroLife      :: Integer
-  , heroGold      :: Integer
-  , heroMineCount :: Integer
+  , heroLife      :: Int
+  , heroGold      :: Int
+  , heroMineCount :: Int
   , heroSpawnPos  :: Pos
   , heroCrashed   :: Bool
 } deriving (Show, Eq)
