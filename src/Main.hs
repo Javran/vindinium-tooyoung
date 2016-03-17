@@ -27,7 +27,7 @@ cmd = subparser
     ( command "training" (info trainingCmd
         ( progDesc "Run bot in training mode" ))
    <> command "arena" (info arenaCmd
-        (progDesc "Run bot in arena mode" ))
+        ( progDesc "Run bot in arena mode" ))
     )
 
 runCmd :: Settings -> GameMode -> IO ()

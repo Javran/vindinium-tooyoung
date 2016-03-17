@@ -33,3 +33,5 @@ executable vdm-ty
                      , data-default
                      , unordered-containers
                      , split
+                     , array
+                     , deepseq

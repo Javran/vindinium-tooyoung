@@ -4,6 +4,7 @@ import Vindinium
 import Vindinium.Vdm
 
 import Control.Monad.Random
+import qualified Data.Array.IArray as IA
 
 randomBot :: GameState -> Vdm Dir
 randomBot _ = do
@@ -12,17 +13,15 @@ randomBot _ = do
     return (candidates !! idx)
 
 inBoard :: Board -> Pos -> Bool
-inBoard b (Pos x y) =
+inBoard b (Pos (x,y)) =
     let s = boardSize b
     in x >= 0 && x < s && y >= 0 && y < s
 
 tileAt :: Board -> Pos -> Maybe Tile
-tileAt b p@(Pos x y) =
+tileAt b p@(Pos (x,y)) =
     if inBoard b p
-        then Just $ boardTiles b !! idx
+        then Just $ boardTiles b IA.! (x,y)
         else Nothing
-  where
-    idx = y * boardSize b + x
 
 pickRandom :: [a] -> IO (Maybe a)
 pickRandom [] = return Nothing
