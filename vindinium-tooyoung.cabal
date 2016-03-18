@@ -12,11 +12,15 @@ maintainer:          antoine.herault@gmail.com
 build-type:          Simple
 cabal-version:       >=1.10
 
-executable vdm-ty
-  default-language:    Haskell2010
-  main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
+library
   hs-source-dirs:      src
+  exposed-modules:     Vindinium
+                     , Vindinium.Api
+                     , Vindinium.Board
+                     , Vindinium.Vdm
+                     , Vindinium.Play
+                     , Vindinium.Types
+                     , Bot
   build-depends:       base
                      , mtl
                      , transformers
@@ -35,3 +39,46 @@ executable vdm-ty
                      , split
                      , array
                      , deepseq
+  default-language:    Haskell2010
+
+executable vdm-ty
+  default-language:    Haskell2010
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
+  hs-source-dirs:      src
+  other-modules:     Vindinium
+                     , Vindinium.Api
+                     , Vindinium.Board
+                     , Vindinium.Vdm
+                     , Vindinium.Play
+                     , Vindinium.Types
+                     , Bot
+  build-depends:       base
+                     , vindinium-tooyoung
+                     , mtl
+                     , transformers
+                     , text
+                     , random
+                     , aeson
+                     , HTTP
+                     , http-types
+                     , http-client
+                     , optparse-applicative >= 0.11.0
+                     , resourcet
+                     , extensible-effects
+                     , MonadRandom
+                     , data-default
+                     , unordered-containers
+                     , split
+                     , array
+                     , deepseq
+
+test-suite vdm-tooyoung-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , vindinium-tooyoung
+                     , hspec
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010

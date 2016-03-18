@@ -24,6 +24,13 @@ data VdmConfig = VConfig -- TODO: hide constructor?
     -- ^ leave this blank, runVdm is responsible for creating it properly
   }
 
+-- VStrategy is decision maker
+-- accepts a VdmState (maintained locally) and a game state,
+-- it might return a move or nothing if cannot decide for now
+-- NOTE: VStrategy have access to VdmState since Vdm is a State monad
+-- we leave it as an input value to save user from doing extraction themselves
+type VStrategy = VdmState -> GameState -> Vdm (Maybe Dir)
+
 instance Show VdmConfig where
     show (VConfig k u _) = show [ ("key" :: String, k)
                                 , ("url", u)

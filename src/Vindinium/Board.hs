@@ -59,6 +59,9 @@ printTile TavernTile = "[]"
 printTile (MineTile Nothing) = "$-"
 printTile (MineTile (Just i)) = "$" ++ show i
 
+-- whole game board is force because we don't need the laziness.
+-- NOTE: make sure not to repeatly deepseq something, as it'll
+-- traverse the whole structure every time doing so.
 parseBoard :: Int -> String -> Board
 parseBoard s raw = tileArr `deepseq` Board s tileArr
   where
@@ -80,7 +83,7 @@ parseBoard s raw = tileArr `deepseq` Board s tileArr
 pprBoard :: Board -> IO ()
 pprBoard (Board s ts) = do
     let rows = chunksOf s (Arr.elems ts)
-    putStrLn $ replicate 10 '=' ++ "AltBoard"
+    putStrLn $ replicate 10 '=' ++ " Board"
     mapM_ (putStrLn . concatMap printTile) rows
     putStrLn ""
 
