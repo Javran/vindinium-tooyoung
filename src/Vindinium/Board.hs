@@ -104,3 +104,10 @@ validTargetCoord b@(Board _ mat) c =
     Arr.inRange bound c && atCoord b c /= WoodTile
   where
     bound = Arr.bounds mat
+
+atCoordSafe :: Board -> Coord -> Maybe Tile
+atCoordSafe b@(Board _ mat) c
+    | Arr.inRange bound c = Just (atCoord b c)
+    | otherwise = Nothing
+  where
+    bound = Arr.bounds mat

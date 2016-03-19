@@ -13,9 +13,23 @@ import qualified Data.Text as T
 import Control.Monad.IO.Class
 import Data.Void
 import Network.HTTP.Client
+import Data.Default
+import Vindinium.Board.Summary
+import Vindinium.Board.ShortestPath
 
 data VdmState = VState
-  deriving (Show)
+  { vStarted :: Bool
+  , vSummary :: Summary
+  , vShortestPathInfo :: ShortestPathInfo
+  }  deriving (Show)
+
+instance Default VdmState where
+    -- these 2 pieces of info (set to error)
+    -- will be made available once the game is started
+    def = VState
+            False
+            (error "summary not available")
+            (error "spi not available")
 
 data VdmConfig = VConfig -- TODO: hide constructor?
   { vcKey :: Key
@@ -24,12 +38,11 @@ data VdmConfig = VConfig -- TODO: hide constructor?
     -- ^ leave this blank, runVdm is responsible for creating it properly
   }
 
--- VStrategy is decision maker
 -- accepts a VdmState (maintained locally) and a game state,
 -- it might return a move or nothing if cannot decide for now
--- NOTE: VStrategy have access to VdmState since Vdm is a State monad
+-- NOTE: VPlanner have access to VdmState since Vdm is a State monad
 -- we leave it as an input value to save user from doing extraction themselves
-type VStrategy = VdmState -> GameState -> Vdm (Maybe Dir)
+type VPlanner = VdmState -> GameState -> Vdm (Maybe Dir)
 
 instance Show VdmConfig where
     show (VConfig k u _) = show [ ("key" :: String, k)

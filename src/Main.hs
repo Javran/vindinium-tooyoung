@@ -5,6 +5,7 @@ import Options.Applicative
 import Vindinium
 import Vindinium.Vdm
 import Bot
+import Data.Default
 
 import qualified Data.Text as T
 
@@ -33,7 +34,7 @@ cmd = subparser
 runCmd :: Settings -> GameMode -> IO ()
 runCmd s gm = do
     let cfg = (vdmConfig <$> settingsKey <*> settingsUrl) s
-    state <- runVdm cfg VState $ playGame gm randomBot
+    state <- runVdm cfg def $ playGame gm myBot
     print state
 
 main :: IO ()

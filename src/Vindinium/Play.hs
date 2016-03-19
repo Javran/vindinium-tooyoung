@@ -6,10 +6,14 @@ import qualified Data.Text as T
 import Data.Monoid
 
 import Data.Aeson
+import Data.Maybe
 import Vindinium.Vdm
 import Vindinium.Api
+import Vindinium.Board.ShortestPath
+import Vindinium.Board.Summary
+import Control.Monad
 
-playGame :: GameMode -> (GameState -> Vdm Dir) -> Vdm VdmState
+playGame :: GameMode -> VPlanner -> Vdm VdmState
 playGame gm b = do
     url <- startUrl gm
     let obj = case gm of
@@ -22,7 +26,7 @@ playGame gm b = do
     io $ putStrLn $ "url is: " ++ (T.unpack . stateViewUrl $ s)
     playLoop b s
 
-playLoop :: (GameState -> Vdm Dir) -> GameState -> Vdm VdmState
+playLoop :: VPlanner -> GameState -> Vdm VdmState
 playLoop bot state =
     if (gameFinished . stateGame) state
         then getVState
@@ -31,11 +35,25 @@ playLoop bot state =
                 maxTurn = gameMaxTurns . stateGame $ state
             io $ do
                 putStrLn $ "Playing turn: " ++ show turn ++ " / " ++ show maxTurn
-                putStrLn $ "Hero position" ++ show (heroPos . stateHero $ state)
-                let hPos = heroPos . stateHero $ state
-                    board = gameBoard . stateGame $ state
+                -- putStrLn $ "Hero position" ++ show (heroPos . stateHero $ state)
+                -- let hPos = heroPos . stateHero $ state
+                let board = gameBoard . stateGame $ state
                 pprBoard board
-            newState <- bot state >>= move (statePlayUrl state)
+            vs <- getVState
+            -- update map summary
+            unless (vStarted vs) $
+                putVState vs
+                  { vStarted = True
+                  , vSummary = summarize (gameBoard . stateGame $ state)
+                  }
+
+            -- do path finding
+            modifyVState
+                (\s -> let board = gameBoard . stateGame $ state
+                           (Pos coord) = heroPos . stateHero $ state
+                       in s { vShortestPathInfo = calcShortestPathInfo board coord })
+            vs' <- getVState
+            newState <- fromMaybe Stay <$> bot vs' state >>= move (statePlayUrl state)
             playLoop bot newState
 
 startUrl :: GameMode -> Vdm T.Text

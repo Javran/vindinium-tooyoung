@@ -2,28 +2,30 @@ import Test.Hspec
 import Vindinium.Board
 import Vindinium.Types
 import Vindinium.Board.ShortestPath
+import Vindinium.Board.Summary
+import qualified Data.IntMap as IM
 import Control.Monad
-import qualified Data.Map.Strict as Map
 import Data.List
 
 {-# ANN module "HLint: ignore Redundant do" #-}
 
 boardSample :: Board
 boardSample = parseBoard 14 $ concat
-  [ "############################"
+  [ "############################" -- x = 0
   , "############################"
   , "  ########################  "
   , "    ##@1##  ####  ##  ##    "
-  , "                @4          "
+  , "                @4          " -- x = 4
   , "    ##  $-        $4  ##    "
   , "##[]##                ##[]##"
   , "##[]##                ##[]##"
   , "    ##  $-        $-  ##    "
-  , "                    @3      "
+  , "                    @3      " -- x = 9
   , "    ##@2##  ####  ##  ##    "
   , "  ########################  "
   , "############################"
-  , "############################"
+  , "############################" -- x = 13
+  --         ^^ y = 4  ^^ y = 9
   ]
 
 main :: IO ()
@@ -32,8 +34,6 @@ main = hspec $ do
         it "reads right hero positions" $ do
             (boardSample `atCoord` (3,3)) `shouldBe` HeroTile 1
             (boardSample `atCoord` (10,3)) `shouldBe` HeroTile 2
-            -- let result2 = calcShortestPathInfo boardSample (3,3)
-            -- print (findPathTo result2 (2,3))
     describe "Vindinium.Board.ShortestPath" $ do
         it "finds shortest paths correctly" $ do
             let srcCoord = (3,3)
@@ -42,6 +42,12 @@ main = hspec $ do
                 case findPathTo spi (x,y) of
                     Nothing -> () `shouldBe` () -- nothing to expect ..
                     Just dirs ->
-                        foldl (flip applyDir) srcCoord dirs `shouldBe` (x,y)
-    -- TODO: get all important object positions
-    -- taverns / spawning point / mines / collect all non-blocks for preprocessing map
+                        foldl' (flip applyDir) srcCoord dirs `shouldBe` (x,y)
+    describe "Vindinium.Board.Summary" $ do
+        it "gives correct summary" $ do
+            let s = summarize boardSample
+            s `shouldBe` Summary
+              { sSpawnPoints = IM.fromList [(1,(3,3)),(2,(10,3)),(3,(9,10)),(4,(4,8))]
+              , sTaverns = [(7,12),(7,1),(6,12),(6,1)]
+              , sMines = [(8,9),(8,4),(5,9),(5,4)]
+              }

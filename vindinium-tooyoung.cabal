@@ -18,6 +18,7 @@ library
                      , Vindinium.Api
                      , Vindinium.Board
                      , Vindinium.Board.ShortestPath
+                     , Vindinium.Board.Summary
                      , Vindinium.Vdm
                      , Vindinium.Play
                      , Vindinium.Types
@@ -53,6 +54,7 @@ executable vdm-ty
                      , Vindinium.Api
                      , Vindinium.Board
                      , Vindinium.Board.ShortestPath
+                     , Vindinium.Board.Summary
                      , Vindinium.Vdm
                      , Vindinium.Play
                      , Vindinium.Types
@@ -77,6 +79,7 @@ executable vdm-ty
                      , array
                      , containers
                      , deepseq
+                     , psqueues
 
 test-suite vdm-tooyoung-test
   type:                exitcode-stdio-1.0
