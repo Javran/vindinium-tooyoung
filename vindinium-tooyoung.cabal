@@ -75,6 +75,7 @@ executable vdm-ty
                      , unordered-containers
                      , split
                      , array
+                     , containers
                      , deepseq
 
 test-suite vdm-tooyoung-test

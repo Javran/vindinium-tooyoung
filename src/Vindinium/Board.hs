@@ -38,7 +38,9 @@ instance FromJSON Board where
     parseJSON (Object o) = parseBoard <$> o .: "size" <*> o .: "tiles"
     parseJSON _ = mzero
 
-newtype Pos = Pos (Int,Int)
+type Coord = (Int, Int)
+
+newtype Pos = Pos Coord
   deriving (Show, Eq)
 
 mkPos :: Int -> Int -> Pos
@@ -87,10 +89,18 @@ pprBoard (Board s ts) = do
     mapM_ (putStrLn . concatMap printTile) rows
     putStrLn ""
 
-atCoord :: Board -> (Int,Int) -> Tile
-atCoord (Board _ t) pos = Arr.unsafeAt t (Arr.index bs pos)
-  where
-    bs = Arr.bounds t
+unsafeIndex :: Arr.Ix i => Arr.Array i a -> i -> a
+unsafeIndex arr idx = Arr.unsafeAt arr (Arr.index (Arr.bounds arr) idx)
+
+atCoord :: Board -> Coord -> Tile
+atCoord (Board _ t) = unsafeIndex t
 
 atPos :: Board -> Pos -> Tile
 atPos b (Pos p) = atCoord b p
+
+-- a valid target position is any non-WoodTile in range of the board
+validTargetCoord :: Board -> Coord -> Bool
+validTargetCoord b@(Board _ mat) c =
+    Arr.inRange bound c && atCoord b c /= WoodTile
+  where
+    bound = Arr.bounds mat

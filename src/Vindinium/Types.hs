@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
 module Vindinium.Types
   ( Settings(..)
   , Key, Url
@@ -8,6 +8,8 @@ module Vindinium.Types
   , Hero(..)
   , Dir(..)
   , GameMode(..)
+  , reverseDir
+  , applyDir
   , module Vindinium.Board
   ) where
 
@@ -16,6 +18,8 @@ import Data.Text (Text, pack, unpack)
 import Data.Aeson
 import Control.Monad
 import Vindinium.Board
+import Control.DeepSeq
+import GHC.Generics
 
 type Key = Text
 type Url = Text
@@ -64,7 +68,25 @@ data Hero = Hero
   } deriving (Show, Eq)
 
 data Dir = Stay | North | South | East | West
-  deriving (Show, Eq, Read)
+  deriving (Show, Eq, Read, Generic)
+
+instance NFData Dir
+
+reverseDir :: Dir -> Dir
+reverseDir d = case d of
+    North -> South
+    South -> North
+    West -> East
+    East -> West
+    Stay -> error "cannot reverse Stay"
+
+applyDir :: Dir -> Coord -> Coord
+applyDir d v@(x,y) = case d of
+    Stay -> v
+    North -> (x-1,y)
+    South -> (x+1,y)
+    West -> (x,y-1)
+    East -> (x,y+1)
 
 instance FromJSON GameState where
     parseJSON (Object o) =
