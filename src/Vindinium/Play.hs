@@ -23,7 +23,9 @@ playGame gm b = do
                       )
             GMArena -> object []
     s <- sendRequest url obj
-    io $ putStrLn $ "url is: " ++ (T.unpack . stateViewUrl $ s)
+    io $ do
+        putStrLn $ "url is: " ++ (T.unpack . stateViewUrl $ s)
+        appendFile "view_url" ((T.unpack . stateViewUrl $ s) ++ "\n")
     playLoop b s
 
 playLoop :: VPlanner -> GameState -> Vdm VdmState
