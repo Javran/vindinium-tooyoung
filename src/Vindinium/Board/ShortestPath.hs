@@ -25,7 +25,7 @@ findShortestPaths (b@(Board sz mat)) src = findShortestPaths' initQueue Map.empt
     bound = Arr.bounds mat
     inf = sz * sz * 2
     expand :: (Int, Int) -> [( (Int,Int), Dir)]
-    expand (x,y) = filter (inRange bound . fst)
+    expand (x,y) = filter (\(c,_) -> inRange bound c && atCoord b c /= WoodTile)
                           [ ((x,y-1), West)
                           , ((x,y+1), East)
                           , ((x-1,y), North)
@@ -44,6 +44,8 @@ findShortestPaths (b@(Board sz mat)) src = findShortestPaths' initQueue Map.empt
                        -> Map.Map (Int,Int) (Maybe PathInfo)
     findShortestPaths' q visited = case PSQ.minView q of
         Nothing -> visited
+        -- even the smallest point is unreachable, stop searching
+        Just (_, d, _, _) | d >= inf -> visited
         Just (coord,dist,v,newQ) ->
             let newVisited = Map.insert coord v visited
                 -- update pqueue
@@ -53,7 +55,6 @@ findShortestPaths (b@(Board sz mat)) src = findShortestPaths' initQueue Map.empt
                   where
                     modify Nothing = ((), Nothing)
                     modify (e@(Just (curDist,_)))
-                        | atCoord b curCoord == WoodTile = ((), e)
                         | dist+1 < curDist = ((), Just (dist+1, Just (PathInfo curDir (dist+1))))
                         | otherwise = ((), e)
             in findShortestPaths' newQ2 newVisited
