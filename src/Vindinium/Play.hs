@@ -13,7 +13,7 @@ import Vindinium.Board.ShortestPath
 import Vindinium.Board.Summary
 import Control.Monad
 
-playGame :: GameMode -> VPlanner -> Vdm VdmState
+playGame :: GameMode -> VPlanner VdmState -> Vdm VdmState VdmState
 playGame gm b = do
     url <- startUrl gm
     let obj = case gm of
@@ -28,7 +28,7 @@ playGame gm b = do
         appendFile "view_url" ((T.unpack . stateViewUrl $ s) ++ "\n")
     playLoop b s
 
-playLoop :: VPlanner -> GameState -> Vdm VdmState
+playLoop :: VPlanner VdmState -> GameState -> Vdm VdmState VdmState
 playLoop bot state =
     if (gameFinished . stateGame) state
         then getVState
@@ -58,7 +58,7 @@ playLoop bot state =
             newState <- fromMaybe Stay <$> bot vs' state >>= move (statePlayUrl state)
             playLoop bot newState
 
-startUrl :: GameMode -> Vdm T.Text
+startUrl :: GameMode -> Vdm s T.Text
 startUrl gm = do
     let v = case gm of
               GMTraining _ _ -> "training"
@@ -66,10 +66,10 @@ startUrl gm = do
     url <- vcUrl <$> askVConfig
     return $ url <> "/api/" <> v
 
-move :: Url -> Dir -> Vdm GameState
+move :: Url -> Dir -> Vdm s GameState
 move u d = sendRequest u $ object [("dir", toJSON d)]
 
-sendRequest :: Url -> Value -> Vdm GameState
+sendRequest :: Url -> Value -> Vdm s GameState
 sendRequest u v =
     askVConfig >>=
     io . (request <$> vcKey <*> pure u <*> vcMgr <*> pure v)

@@ -12,13 +12,13 @@ import qualified Data.Array.IArray as IA
 import Data.Function
 import Data.List
 
-myBot :: VPlanner
+myBot :: VPlanner VdmState
 myBot =
     fullRecoverPlanner `composePlanner`
     healthMaintainPlanner `composePlanner`
     mineObtainPlanner
 
-composePlanner :: VPlanner -> VPlanner -> VPlanner
+composePlanner :: VPlanner VdmState -> VPlanner VdmState -> VPlanner VdmState
 composePlanner p1 p2 vstate gstate = do
     r1 <- p1 vstate gstate
     case r1 of
@@ -27,7 +27,7 @@ composePlanner p1 p2 vstate gstate = do
             p2 vstate' gstate
         Just _ -> pure r1
 
-fullRecoverPlanner :: VPlanner
+fullRecoverPlanner :: VPlanner VdmState
 fullRecoverPlanner vstate gstate = do
     let board = gameBoard . stateGame $ gstate
         hero = stateHero $ gstate
@@ -46,7 +46,7 @@ fullRecoverPlanner vstate gstate = do
           pure (Just (snd (head nearbyTaverns)))
        else pure Nothing
 
-healthMaintainPlanner :: VPlanner
+healthMaintainPlanner :: VPlanner VdmState
 healthMaintainPlanner vstate gstate = do
     let board = gameBoard . stateGame $ gstate
         hero = stateHero $ gstate
@@ -74,7 +74,7 @@ healthMaintainPlanner vstate gstate = do
                       _ -> pure Nothing
        else pure Nothing
 
-mineObtainPlanner :: VPlanner
+mineObtainPlanner :: VPlanner VdmState
 mineObtainPlanner vstate gstate = do
     -- find closest not-obtained mine
     let board = gameBoard . stateGame $ gstate

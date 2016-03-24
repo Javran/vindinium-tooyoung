@@ -5,6 +5,7 @@ module Vindinium.Vdm where
 import Vindinium.Types
 import qualified Vindinium.Types as VT
 
+import Data.Typeable
 import Control.Eff
 import Control.Eff.Reader.Strict
 import Control.Eff.State.Strict
@@ -42,7 +43,7 @@ data VdmConfig = VConfig -- TODO: hide constructor?
 -- it might return a move or nothing if cannot decide for now
 -- NOTE: VPlanner have access to VdmState since Vdm is a State monad
 -- we leave it as an input value to save user from doing extraction themselves
-type VPlanner = VdmState -> GameState -> Vdm (Maybe Dir)
+type VPlanner s = VdmState -> GameState -> Vdm s (Maybe Dir)
 
 instance Show VdmConfig where
     show (VConfig k u _) = show [ ("key" :: String, k)
@@ -52,15 +53,15 @@ instance Show VdmConfig where
 vdmConfig :: Key -> Url -> VdmConfig
 vdmConfig k u = VConfig k u (error "manager not initialized")
 
-type Vdm a = Eff
+type Vdm s a = Eff
   (  Reader VdmConfig
-  :> State VdmState
+  :> State s
   :> Lift IO
   :> Void) a
 
-type BotE = VT.GameState -> Vdm Dir
+-- type BotE = VT.GameState -> Vdm Dir
 
-runVdm :: VdmConfig -> VdmState -> Vdm a -> IO (VdmState, a)
+runVdm :: (Typeable s) => VdmConfig -> s -> Vdm s a -> IO (s, a)
 runVdm c s m = do
     -- inject manager right before we start.
     mgr <- newManager defaultManagerSettings
@@ -73,11 +74,11 @@ io = liftIO
 askVConfig :: (Member (Reader VdmConfig) r) => Eff r VdmConfig
 askVConfig = ask
 
-getVState :: (Member (State VdmState) r) => Eff r VdmState
+getVState :: (Member (State s) r, Typeable s) => Eff r s
 getVState = get
 
-putVState :: (Member (State VdmState) r) => VdmState -> Eff r ()
+putVState :: (Member (State s) r, Typeable s) => s -> Eff r ()
 putVState = put
 
-modifyVState :: (Member (State VdmState) r) => (VdmState -> VdmState) -> Eff r ()
+modifyVState :: (Member (State s) r, Typeable s) => (s -> s) -> Eff r ()
 modifyVState = modify
