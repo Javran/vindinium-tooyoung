@@ -4,6 +4,7 @@ import Vindinium.Types
 import qualified Data.IntMap as IM
 import qualified Data.Array as Arr
 import Data.Foldable
+import Data.Maybe
 
 -- board preprocessing, summarize important info
 -- that can be used by planners
@@ -23,3 +24,6 @@ summarize (Board _ b) =
         TavernTile -> s { sTaverns = c : sTaverns s }
         MineTile _ -> s { sMines = c : sMines s }
         _ -> s
+
+spawningPointOf :: Summary -> HeroId -> Coord
+spawningPointOf s h = fromJust (IM.lookup h (sSpawnPoints s))

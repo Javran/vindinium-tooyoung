@@ -6,12 +6,12 @@ import Vindinium.Board.Summary
 import Vindinium.Board.ShortestPath
 import Data.Foldable
 import Data.Maybe
-import Control.Monad.Random
-import qualified Data.Array.IArray as IA
 import Data.Function
 import Data.Typeable
 import Control.Monad
 import Data.Default
+import Data.List
+import Control.Monad.Random
 
 data MyState = VState
   { vStarted :: Bool
@@ -44,6 +44,7 @@ myPP vs state = do
 myBot :: VPlanner MyState
 myBot =
     fullRecoverPlanner `composePlanner`
+    avoidPlayerPlanner `composePlanner`
     healthMaintainPlanner `composePlanner`
     mineObtainPlanner
 
@@ -128,19 +129,46 @@ mineObtainPlanner vstate gstate = do
     io $ putStrLn $ "I found " ++ show (length targetMines) ++ " target mines"
     headToClosestOf targetMines vstate gstate
 
-inBoard :: Board -> Pos -> Bool
-inBoard b (Pos (x,y)) =
-    let s = boardSize b
-    in x >= 0 && x < s && y >= 0 && y < s
+-- TODO: take wood cells into account
+avoidPlayerPlanner :: VPlanner MyState
+avoidPlayerPlanner vstate gstate = do
+    let board = gameBoard . stateGame $ gstate
+        hero = stateHero gstate
+        summary = vSummary vstate
+        allHeroes = gameHeroes . stateGame $ gstate
+        allDirs = [Stay,North,South,West,East]
+        threatingHeroes = filter
+                            (\h -> heroId h /= heroId hero
+                                && heroLife h >= heroLife hero)
+                            allHeroes
+        dangerousHeroCoords = [ applyDir d pos
+                          | d <- allDirs
+                          , (Pos pos) <- heroPos <$> threatingHeroes
+                          ]
+        dangerousSpawningPoints = [ spawningPointOf summary hId
+                                  | hId <- heroId <$> filter (\h -> heroLife h <= 21) allHeroes
+                                  , hId /= heroId hero]
+        dangerousCoords = dangerousHeroCoords ++ dangerousSpawningPoints
+        possibleMoves = [ (d,applyDir d pos)
+                        | let (Pos pos) = heroPos hero
+                        , d <- allDirs
+                        ]
+        (dangerousMoves,nonDangerousMoves) = partition
+                                               (\(_,coord) -> coord `elem` dangerousCoords)
+                                               possibleMoves
+    case dangerousMoves of
+        [] -> pure Nothing -- every direction is safe.
+        _ ->
+            case nonDangerousMoves of
+                [] -> do
+                    io $ putStrLn "warning: no move is safe, proceeding to next planner"
+                    pure Nothing
+                _ -> do
+                    io $ putStrLn "reaching dangerous places, trying to avoid"
+                    takeRandomMove (map fst nonDangerousMoves)
 
-tileAt :: Board -> Pos -> Maybe Tile
-tileAt b p@(Pos (x,y)) =
-    if inBoard b p
-        then Just $ boardTiles b IA.! (x,y)
-        else Nothing
-
-pickRandom :: [a] -> IO (Maybe a)
-pickRandom [] = return Nothing
-pickRandom xs = do
-    idx <- getStdRandom (randomR (0, length xs - 1))
-    return . Just $ xs !! idx
+takeRandomMove :: Typeable s => [Dir] -> Vdm s (Maybe Dir)
+takeRandomMove [] = pure Nothing
+takeRandomMove ds = do
+    i <- io $ getRandomR (0,length ds-1)
+    pure (Just (ds !! i))
