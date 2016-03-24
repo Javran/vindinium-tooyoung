@@ -13,8 +13,23 @@ import Data.Function
 import Data.List
 import Data.Typeable
 import Control.Monad
+import Data.Default
 
-myPP :: VPreprocessor VdmState
+data MyState = VState
+  { vStarted :: Bool
+  , vSummary :: Summary
+  , vShortestPathInfo :: ShortestPathInfo
+  }  deriving (Show)
+
+instance Default MyState where
+    -- these 2 pieces of info (set to error)
+    -- will be made available once the game is started
+    def = VState
+            False
+            (error "summary not available")
+            (error "spi not available")
+
+myPP :: VPreprocessor MyState
 myPP vs state = do
     unless (vStarted vs) $
         putVState vs
@@ -28,7 +43,7 @@ myPP vs state = do
                    (Pos coord) = heroPos . stateHero $ state
                in s { vShortestPathInfo = calcShortestPathInfo board coord })
 
-myBot :: VPlanner VdmState
+myBot :: VPlanner MyState
 myBot =
     fullRecoverPlanner `composePlanner`
     healthMaintainPlanner `composePlanner`
@@ -43,7 +58,7 @@ composePlanner p1 p2 vstate gstate = do
             p2 vstate' gstate
         Just _ -> pure r1
 
-fullRecoverPlanner :: VPlanner VdmState
+fullRecoverPlanner :: VPlanner MyState
 fullRecoverPlanner vstate gstate = do
     let board = gameBoard . stateGame $ gstate
         hero = stateHero $ gstate
@@ -62,7 +77,7 @@ fullRecoverPlanner vstate gstate = do
           pure (Just (snd (head nearbyTaverns)))
        else pure Nothing
 
-healthMaintainPlanner :: VPlanner VdmState
+healthMaintainPlanner :: VPlanner MyState
 healthMaintainPlanner vstate gstate = do
     let board = gameBoard . stateGame $ gstate
         hero = stateHero $ gstate
@@ -90,7 +105,7 @@ healthMaintainPlanner vstate gstate = do
                       _ -> pure Nothing
        else pure Nothing
 
-mineObtainPlanner :: VPlanner VdmState
+mineObtainPlanner :: VPlanner MyState
 mineObtainPlanner vstate gstate = do
     -- find closest not-obtained mine
     let board = gameBoard . stateGame $ gstate
@@ -117,8 +132,6 @@ mineObtainPlanner vstate gstate = do
             case pathM of
                 Just (p:_) -> pure (Just p)
                 _ -> pure Nothing
-
-
 
 inBoard :: Board -> Pos -> Bool
 inBoard b (Pos (x,y)) =

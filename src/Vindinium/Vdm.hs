@@ -3,7 +3,6 @@
 module Vindinium.Vdm where
 
 import Vindinium.Types
-import qualified Vindinium.Types as VT
 
 import Data.Typeable
 import Control.Eff
@@ -14,23 +13,7 @@ import qualified Data.Text as T
 import Control.Monad.IO.Class
 import Data.Void
 import Network.HTTP.Client
-import Data.Default
-import Vindinium.Board.Summary
-import Vindinium.Board.ShortestPath
 
-data VdmState = VState
-  { vStarted :: Bool
-  , vSummary :: Summary
-  , vShortestPathInfo :: ShortestPathInfo
-  }  deriving (Show)
-
-instance Default VdmState where
-    -- these 2 pieces of info (set to error)
-    -- will be made available once the game is started
-    def = VState
-            False
-            (error "summary not available")
-            (error "spi not available")
 
 data VdmConfig = VConfig -- TODO: hide constructor?
   { vcKey :: Key
