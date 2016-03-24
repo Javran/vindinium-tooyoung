@@ -44,6 +44,7 @@ library
                      , containers
                      , psqueues
                      , universe
+                     , universe-base
   default-language:    Haskell2010
 
 executable vdm-ty

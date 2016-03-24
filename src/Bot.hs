@@ -140,31 +140,33 @@ avoidPlayerPlanner vstate gstate = do
         hero = stateHero gstate
         summary = vSummary vstate
         allHeroes = gameHeroes . stateGame $ gstate
+        -- all heroes that can survive our attack
         threatingHeroes = filter
                             (\h -> heroId h /= heroId hero
                                 && heroLife h >= heroLife hero)
                             allHeroes
         -- TODO: proper impl of hero attacking
-        dangerousHeroCoords1 = [ applyDir d pos
-                               | d <- universe
-                               , (Pos pos) <- heroPos <$> threatingHeroes
-                               ]
-        dangerousHeroCoords = nub [ applyDir d pos
-                                  | d <- universe
-                                  , d /= Stay
-                                  , pos <- dangerousHeroCoords1
-                                  ]
-        dangerousSpawningPoints1 = [ spawningPointOf summary hId
-                                  | hId <- heroId <$> filter (\h -> heroLife h <= 21) allHeroes
-                                  , hId /= heroId hero]
-        dangerousSpawningPoints = nub [ applyDir d pos
-                                      | d <- universe
-                                      , d /= Stay
-                                      , pos <- dangerousSpawningPoints1 ]
+        dangerousHeroCoords = nub $ do
+            d <- universe
+            (Pos pos) <- heroPos <$> threatingHeroes
+            -- possible hero positions after one move
+            hPos <- maybeToList (applyDir' board d pos)
+            -- possible attacking positions one hero can have
+            da <- universe
+            guard (da /= Stay)
+            pure (applyDir da hPos)
+        dangerousSpawningPoints = nub $ do
+            -- pick one dying hero other than me
+            h <- filter (\h -> heroLife h <= 21) allHeroes
+            guard $ heroId hero /= heroId h
+            let hPos = spawningPointOf summary (heroId h)
+            -- hero will respawn at coord hPos
+            da <- universe
+            pure (applyDir da hPos)
         dangerousCoords = nub $ dangerousHeroCoords ++ dangerousSpawningPoints
         possibleMoves = [ (d,applyDir d pos)
                         | let (Pos pos) = heroPos hero
-                        , d <- allDirs
+                        , d <- universe
                         ]
         (dangerousMoves,nonDangerousMoves) = partition
                                                (\(_,coord) -> coord `elem` dangerousCoords)
