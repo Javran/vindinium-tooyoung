@@ -141,10 +141,16 @@ avoidPlayerPlanner vstate gstate = do
                             (\h -> heroId h /= heroId hero
                                 && heroLife h >= heroLife hero)
                             allHeroes
-        dangerousHeroCoords = [ applyDir d pos
-                          | d <- allDirs
-                          , (Pos pos) <- heroPos <$> threatingHeroes
-                          ]
+        -- TODO: proper impl of hero attacking
+        dangerousHeroCoords1 = [ applyDir d pos
+                              | d <- allDirs
+                              , (Pos pos) <- heroPos <$> threatingHeroes
+                              ]
+        dangerousHeroCoords = nub [ applyDir d pos
+                                  | d <- allDirs
+                                  , d /= Stay
+                                  , pos <- dangerousHeroCoords1
+                                  ]
         dangerousSpawningPoints = [ spawningPointOf summary hId
                                   | hId <- heroId <$> filter (\h -> heroLife h <= 21) allHeroes
                                   , hId /= heroId hero]
