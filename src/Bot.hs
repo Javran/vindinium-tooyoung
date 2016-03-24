@@ -2,7 +2,6 @@ module Bot where
 
 import Vindinium
 import Vindinium.Vdm
-import Vindinium.Board
 import Vindinium.Board.Summary
 import Vindinium.Board.ShortestPath
 import Data.Foldable
@@ -10,7 +9,6 @@ import Data.Maybe
 import Control.Monad.Random
 import qualified Data.Array.IArray as IA
 import Data.Function
-import Data.List
 import Data.Typeable
 import Control.Monad
 import Data.Default
@@ -49,6 +47,24 @@ myBot =
     healthMaintainPlanner `composePlanner`
     mineObtainPlanner
 
+headToClosestOf :: [Coord] -> VPlanner MyState
+headToClosestOf [] _ _ = do
+    io $ putStrLn "headToClosestOf: no candidate available"
+    pure Nothing
+headToClosestOf cs@(_:_) vstate _ = do
+    -- NOTE: make sure fromJust is safe
+    -- INVARIANT: cs is not empty (guaranteed by pattern matching)
+    let spi = vShortestPathInfo vstate
+        getDist c = piDist (fromJust (unsafeIndex spi c))
+        target = minimumBy (compare `on` getDist) cs
+        pathM = findPathTo spi target
+    io $ putStrLn $ "Heading to: " ++ show target
+    case pathM of
+        Just (p:_) -> pure (Just p)
+        _ -> do
+            io $ putStrLn "headToClosestOf: failed on path finding"
+            pure Nothing
+
 composePlanner :: Typeable s => VPlanner s -> VPlanner s -> VPlanner s
 composePlanner p1 p2 vstate gstate = do
     r1 <- p1 vstate gstate
@@ -59,11 +75,10 @@ composePlanner p1 p2 vstate gstate = do
         Just _ -> pure r1
 
 fullRecoverPlanner :: VPlanner MyState
-fullRecoverPlanner vstate gstate = do
+fullRecoverPlanner _ gstate = do
     let board = gameBoard . stateGame $ gstate
-        hero = stateHero $ gstate
+        hero = stateHero gstate
         (Pos hPos) = heroPos hero
-        spi = vShortestPathInfo $ vstate
         nearbyTaverns = [ (c,dir)
                         | dir <- [North, South, West, East]
                         , let c = applyDir dir hPos
@@ -73,15 +88,15 @@ fullRecoverPlanner vstate gstate = do
        then do
           io $ do
               putStrLn $ "hero life: " ++ show (heroLife hero)
-              putStrLn $ "keep healing"
+              putStrLn   "keep healing"
           pure (Just (snd (head nearbyTaverns)))
        else pure Nothing
 
 healthMaintainPlanner :: VPlanner MyState
 healthMaintainPlanner vstate gstate = do
     let board = gameBoard . stateGame $ gstate
-        hero = stateHero $ gstate
-        spi = vShortestPathInfo $ vstate
+        hero = stateHero gstate
+        spi = vShortestPathInfo vstate
     if heroLife hero <= 20
        then do
           io $ putStrLn "Low health, need to recover."
@@ -93,24 +108,15 @@ healthMaintainPlanner vstate gstate = do
                   . sTaverns
                   . vSummary
                   $ vstate
-          case taverns of
-              [] -> pure Nothing
-              _ -> do
-                  let getDist c = piDist (fromJust (unsafeIndex spi c))
-                      target = minimumBy (compare `on` getDist) taverns
-                      pathM = findPathTo spi target
-                  io $ putStrLn $ "Heading to: " ++ show target
-                  case pathM of
-                      Just (p:_) -> pure (Just p)
-                      _ -> pure Nothing
+          headToClosestOf taverns vstate gstate
        else pure Nothing
 
 mineObtainPlanner :: VPlanner MyState
 mineObtainPlanner vstate gstate = do
     -- find closest not-obtained mine
     let board = gameBoard . stateGame $ gstate
-        hero = stateHero $ gstate
-        spi = vShortestPathInfo $ vstate
+        hero = stateHero gstate
+        spi = vShortestPathInfo vstate
         targetMines = filter (\coord -> case atCoord board coord of
                                   MineTile s
                                       | s /= Just (heroId hero)
@@ -120,18 +126,7 @@ mineObtainPlanner vstate gstate = do
                     . vSummary
                     $ vstate
     io $ putStrLn $ "I found " ++ show (length targetMines) ++ " target mines"
-    case targetMines of
-        [] -> pure Nothing
-        _ -> do
-            -- here fromJust is safe because of the "Just _ <- " check
-            -- in the previous filter
-            let getDist c = piDist (fromJust (unsafeIndex spi c))
-                target = minimumBy (compare `on` getDist) targetMines
-                pathM = findPathTo spi target
-            io $ putStrLn $ "Heading to: " ++ show target
-            case pathM of
-                Just (p:_) -> pure (Just p)
-                _ -> pure Nothing
+    headToClosestOf targetMines vstate gstate
 
 inBoard :: Board -> Pos -> Bool
 inBoard b (Pos (x,y)) =
