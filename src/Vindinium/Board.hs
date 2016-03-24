@@ -9,6 +9,8 @@ import qualified Data.Array.IArray as Arr
 import qualified Data.Array.Base as Arr
 import GHC.Generics
 import Control.DeepSeq
+import Data.Universe
+import Data.Universe.Helpers
 
 import qualified Data.Text as T
 
@@ -23,6 +25,43 @@ data Tile
     deriving (Show, Eq, Generic)
 
 instance NFData Tile
+
+data Dir = Stay | North | South | East | West
+  deriving (Show, Eq, Read, Generic, Bounded, Enum)
+
+instance Universe Dir where
+    universe = universeDef
+
+instance NFData Dir
+
+reverseDir :: Dir -> Dir
+reverseDir d = case d of
+    North -> South
+    South -> North
+    West -> East
+    East -> West
+    Stay -> error "cannot reverse Stay"
+
+applyDir :: Dir -> Coord -> Coord
+applyDir d v@(x,y) = case d of
+    Stay -> v
+    North -> (x-1,y)
+    South -> (x+1,y)
+    West -> (x,y-1)
+    East -> (x,y+1)
+
+-- ignoring heros
+applyDir' :: Board -> Dir -> Coord -> Maybe Coord
+applyDir' bd@(Board _ mat) d c
+    | not (Arr.inRange (Arr.bounds mat) c') = Nothing
+    | otherwise = case atCoord bd c' of
+        FreeTile -> Just c'
+        WoodTile -> Nothing
+        TavernTile -> Just c
+        HeroTile _ -> Just c'
+        MineTile _ -> Just c
+  where
+    c' = applyDir d c
 
 data Board = Board
   { boardSize  :: ! Int
@@ -111,3 +150,6 @@ atCoordSafe b@(Board _ mat) c
     | otherwise = Nothing
   where
     bound = Arr.bounds mat
+
+coordDist :: Coord -> Coord -> Int
+coordDist (x1,y1) (x2,y2) = abs (x1-x2) + abs(y1-y2)

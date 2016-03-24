@@ -8,6 +8,7 @@ import Control.Monad
 import Data.List
 
 {-# ANN module "HLint: ignore Redundant do" #-}
+{-# ANN module "HLint: ignore Avoid lambda" #-}
 
 boardSample :: Board
 boardSample = parseBoard 14 $ concat
@@ -42,7 +43,10 @@ main = hspec $ do
                 case findPathTo spi (x,y) of
                     Nothing -> () `shouldBe` () -- nothing to expect ..
                     Just dirs ->
-                        foldl' (flip applyDir) srcCoord dirs `shouldBe` (x,y)
+                        let finalPos = foldM (\c d -> applyDir' boardSample d c) srcCoord dirs
+                            -- heros cannot step into things like taverns and mines
+                            -- so we just check if the thing we want is nearby (distance <=1)
+                        in ((<= 1) . coordDist (x,y)) <$> finalPos `shouldBe` Just True
     describe "Vindinium.Board.Summary" $ do
         it "gives correct summary" $ do
             let s = summarize boardSample

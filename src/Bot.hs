@@ -12,6 +12,9 @@ import Control.Monad
 import Data.Default
 import Data.List
 import Control.Monad.Random
+import Data.Universe
+
+{-# ANN module "HLint: ignore Reduce duplication" #-}
 
 data MyState = VState
   { vStarted :: Bool
@@ -132,22 +135,22 @@ mineObtainPlanner vstate gstate = do
 -- TODO: take wood cells into account
 avoidPlayerPlanner :: VPlanner MyState
 avoidPlayerPlanner vstate gstate = do
+    -- TODO: escape path need to be vaild
     let board = gameBoard . stateGame $ gstate
         hero = stateHero gstate
         summary = vSummary vstate
         allHeroes = gameHeroes . stateGame $ gstate
-        allDirs = [Stay,North,South,West,East]
         threatingHeroes = filter
                             (\h -> heroId h /= heroId hero
                                 && heroLife h >= heroLife hero)
                             allHeroes
         -- TODO: proper impl of hero attacking
         dangerousHeroCoords1 = [ applyDir d pos
-                              | d <- allDirs
-                              , (Pos pos) <- heroPos <$> threatingHeroes
-                              ]
+                               | d <- universe
+                               , (Pos pos) <- heroPos <$> threatingHeroes
+                               ]
         dangerousHeroCoords = nub [ applyDir d pos
-                                  | d <- allDirs
+                                  | d <- universe
                                   , d /= Stay
                                   , pos <- dangerousHeroCoords1
                                   ]
@@ -155,7 +158,7 @@ avoidPlayerPlanner vstate gstate = do
                                   | hId <- heroId <$> filter (\h -> heroLife h <= 21) allHeroes
                                   , hId /= heroId hero]
         dangerousSpawningPoints = nub [ applyDir d pos
-                                      | d <- allDirs
+                                      | d <- universe
                                       , d /= Stay
                                       , pos <- dangerousSpawningPoints1 ]
         dangerousCoords = nub $ dangerousHeroCoords ++ dangerousSpawningPoints
