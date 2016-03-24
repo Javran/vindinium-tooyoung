@@ -39,11 +39,14 @@ data VdmConfig = VConfig -- TODO: hide constructor?
     -- ^ leave this blank, runVdm is responsible for creating it properly
   }
 
--- accepts a VdmState (maintained locally) and a game state,
+-- accepts a custom state (maintained locally) and a game state,
 -- it might return a move or nothing if cannot decide for now
--- NOTE: VPlanner have access to VdmState since Vdm is a State monad
+-- NOTE: VPlanner have access to custom since Vdm is a State monad
 -- we leave it as an input value to save user from doing extraction themselves
-type VPlanner s = VdmState -> GameState -> Vdm s (Maybe Dir)
+type VPlanner s = s -> GameState -> Vdm s (Maybe Dir)
+
+-- preprocess a game state
+type VPreprocessor s = s -> GameState -> Vdm s ()
 
 instance Show VdmConfig where
     show (VConfig k u _) = show [ ("key" :: String, k)
@@ -58,8 +61,6 @@ type Vdm s a = Eff
   :> State s
   :> Lift IO
   :> Void) a
-
--- type BotE = VT.GameState -> Vdm Dir
 
 runVdm :: (Typeable s) => VdmConfig -> s -> Vdm s a -> IO (s, a)
 runVdm c s m = do

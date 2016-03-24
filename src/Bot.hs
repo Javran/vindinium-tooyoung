@@ -11,6 +11,22 @@ import Control.Monad.Random
 import qualified Data.Array.IArray as IA
 import Data.Function
 import Data.List
+import Data.Typeable
+import Control.Monad
+
+myPP :: VPreprocessor VdmState
+myPP vs state = do
+    unless (vStarted vs) $
+        putVState vs
+          { vStarted = True
+          , vSummary = summarize (gameBoard . stateGame $ state)
+          }
+
+    -- do path finding
+    modifyVState
+        (\s -> let board = gameBoard . stateGame $ state
+                   (Pos coord) = heroPos . stateHero $ state
+               in s { vShortestPathInfo = calcShortestPathInfo board coord })
 
 myBot :: VPlanner VdmState
 myBot =
@@ -18,7 +34,7 @@ myBot =
     healthMaintainPlanner `composePlanner`
     mineObtainPlanner
 
-composePlanner :: VPlanner VdmState -> VPlanner VdmState -> VPlanner VdmState
+composePlanner :: Typeable s => VPlanner s -> VPlanner s -> VPlanner s
 composePlanner p1 p2 vstate gstate = do
     r1 <- p1 vstate gstate
     case r1 of

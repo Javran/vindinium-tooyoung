@@ -34,7 +34,7 @@ cmd = subparser
 runCmd :: Settings -> GameMode -> IO ()
 runCmd s gm = do
     let cfg = (vdmConfig <$> settingsKey <*> settingsUrl) s
-    state <- runVdm cfg def $ playGame gm myBot
+    state <- runVdm cfg def $ playGame gm myPP myBot
     print state
 
 main :: IO ()

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ExplicitForAll, TypeFamilies #-}
 module Vindinium.Play where
 
 import Vindinium.Types
@@ -9,12 +9,10 @@ import Data.Aeson
 import Data.Maybe
 import Vindinium.Vdm
 import Vindinium.Api
-import Vindinium.Board.ShortestPath
-import Vindinium.Board.Summary
-import Control.Monad
+import Data.Typeable
 
-playGame :: GameMode -> VPlanner VdmState -> Vdm VdmState VdmState
-playGame gm b = do
+playGame :: Typeable s => GameMode -> VPreprocessor s -> VPlanner s -> Vdm s s
+playGame gm pp b = do
     url <- startUrl gm
     let obj = case gm of
             GMTraining mt mb ->
@@ -26,10 +24,10 @@ playGame gm b = do
     io $ do
         putStrLn $ "url is: " ++ (T.unpack . stateViewUrl $ s)
         appendFile "view_url" ((T.unpack . stateViewUrl $ s) ++ "\n")
-    playLoop b s
+    playLoop pp b s
 
-playLoop :: VPlanner VdmState -> GameState -> Vdm VdmState VdmState
-playLoop bot state =
+playLoop :: Typeable s => VPreprocessor s -> VPlanner s -> GameState -> Vdm s s
+playLoop pp bot state =
     if (gameFinished . stateGame) state
         then getVState
         else do
@@ -42,21 +40,10 @@ playLoop bot state =
                 let board = gameBoard . stateGame $ state
                 pprBoard board
             vs <- getVState
-            -- update map summary
-            unless (vStarted vs) $
-                putVState vs
-                  { vStarted = True
-                  , vSummary = summarize (gameBoard . stateGame $ state)
-                  }
-
-            -- do path finding
-            modifyVState
-                (\s -> let board = gameBoard . stateGame $ state
-                           (Pos coord) = heroPos . stateHero $ state
-                       in s { vShortestPathInfo = calcShortestPathInfo board coord })
+            pp vs state
             vs' <- getVState
             newState <- fromMaybe Stay <$> bot vs' state >>= move (statePlayUrl state)
-            playLoop bot newState
+            playLoop pp bot newState
 
 startUrl :: GameMode -> Vdm s T.Text
 startUrl gm = do
