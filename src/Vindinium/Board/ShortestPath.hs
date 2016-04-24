@@ -15,7 +15,7 @@ import GHC.Generics
 import qualified Data.HashPSQ as PSQ
 
 data PathInfo = PathInfo
-  { piFrom :: Dir
+  { piFrom :: [Dir] -- INVARIANT: always non-empty
   , piDist :: Int
   } deriving (Show, Generic)
 
@@ -30,8 +30,9 @@ calcShortestPathInfo b@(Board _ mat) src =
 findPathTo :: ShortestPathInfo -> Coord -> Maybe [Dir]
 findPathTo spi = (reverse <$>) . findPathTo'
   where
+    findPathTo' :: Coord -> Maybe [Dir]
     findPathTo' tgt@(x,y) = do
-        (PathInfo prevDir _) <- unsafeIndex spi tgt
+        (PathInfo (prevDir:_) _) <- unsafeIndex spi tgt
         case prevDir of
             -- only one place where Stay be, which is the source pos
             Stay -> pure []
@@ -47,31 +48,28 @@ findPathTo spi = (reverse <$>) . findPathTo'
 findShortestPaths :: Board -> Coord -> Map.Map Coord (Maybe PathInfo)
 findShortestPaths (b@(Board sz mat)) src = findShortestPaths' initQueue Map.empty
   where
-    canMoveToCoord :: Board -> Coord -> Bool
-    canMoveToCoord b@(Board _ mat) c =
-        Arr.inRange bound c && case atCoord b c of
-            WoodTile -> False
-            TavernTile -> False
-            MineTile _ -> False
-            _ -> True
-      where
-        bound = Arr.bounds mat
-    shouldExpand :: Board -> Coord -> Bool
-    shouldExpand b c = case atCoord b c of
-        FreeTile -> True
-        -- other heros are ignored for now
-        HeroTile _ -> True
-        _ -> False
     inf = sz * sz * 2
-    expand :: Coord -> [( Coord, Dir)]
-    expand (x,y) | not (shouldExpand b (x,y)) = []
-    expand (x,y) =
-        [ ((x,y-1), West)
-        , ((x,y+1), East)
-        , ((x-1,y), North)
-        , ((x+1,y), South) ]
+    expand :: Coord -> [(Coord, Dir)]
+    expand (x,y)
+        | not (shouldExpand (x,y)) = []
+        | otherwise =
+            [ ((x,y-1), West)
+            , ((x,y+1), East)
+            , ((x-1,y), North)
+            , ((x+1,y), South) ]
+      where
+        -- tells whether we want to expand this node,
+        -- as the hero might be standing on top of a tavern / a mine
+        -- to pretend that he has reached the destination,
+        -- in this case we should not expand further.
+        shouldExpand :: Coord -> Bool
+        shouldExpand c = case atCoord b c of
+            FreeTile -> True
+            -- other heros are ignored for now
+            HeroTile _ -> True
+            _ -> False
     -- INVARIANT: source should be the only place where dir == Stay
-    initQueue = PSQ.insert src 0 (Just (PathInfo Stay 0))
+    initQueue = PSQ.insert src 0 (Just (PathInfo [Stay] 0))
                 $ PSQ.fromList (mapMaybe tr (Arr.assocs mat))
       where
         tr (_,WoodTile) = Nothing
@@ -87,6 +85,7 @@ findShortestPaths (b@(Board sz mat)) src = findShortestPaths' initQueue Map.empt
         -- Just (coord,_,_,newQ) | not (shouldExpand b coord) ->
         --   let newVisited = Map.insert coord (Just (PathInfo _ _)) visited
         -- in findShortestPaths' newQ newVisited
+
         Just (coord,dist,v,newQ) ->
             let newVisited = Map.insert coord v visited
                 -- update pqueue
@@ -95,10 +94,12 @@ findShortestPaths (b@(Board sz mat)) src = findShortestPaths' initQueue Map.empt
                     snd (PSQ.alter modify curCoord curQueue)
                   where
                     modify Nothing = ((), Nothing)
-                    modify (e@(Just (curDist,_)))
-                     --   | not (canMoveToCoord b curCoord) = ((), e)
+                    modify (e@(Just (curDist,prevPI)))
                         | not (validTargetCoord b curCoord) = ((), e)
-                        | dist+1 < curDist = ((), Just (dist+1, Just (PathInfo curDir (dist+1))))
+                        | dist+1 < curDist = ((), Just (dist+1, Just (PathInfo [curDir] (dist+1))))
+                        | dist == curDist =
+                            let Just (PathInfo dirs _) = prevPI
+                            in ((), Just (dist, Just (PathInfo (curDir:dirs) dist)))
                         | otherwise = ((), e)
             in findShortestPaths' newQ2 newVisited
 
