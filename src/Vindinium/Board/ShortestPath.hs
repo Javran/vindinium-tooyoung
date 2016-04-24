@@ -11,6 +11,7 @@ import Data.Maybe
 import Control.Monad
 import Control.DeepSeq
 import GHC.Generics
+import System.Random.MWC
 
 import qualified Data.HashPSQ as PSQ
 
@@ -44,6 +45,29 @@ findPathTo spi = (reverse <$>) . findPathTo'
                         East -> (x,y-1)
                         _ -> error "impossible"
                 in (prevDir :) <$> findPathTo' newTgt
+
+findRandomPathTo :: GenIO -> ShortestPathInfo -> Coord -> IO (Maybe [Dir])
+findRandomPathTo g spi = (fmap . fmap) reverse . findPathTo'
+  where
+    findPathTo' :: Coord -> IO (Maybe [Dir])
+    findPathTo' tgt@(x,y) = do
+        let mPrevPathInfos = unsafeIndex spi tgt
+        case mPrevPathInfos of
+            Nothing -> pure Nothing
+            Just (PathInfo prevDirs _) -> do
+                which <- uniformR (0, length prevDirs - 1) g
+                let prevDir = prevDirs !! which
+                case prevDir of
+                    Stay -> pure (Just [])
+                    _ -> do
+                        let newTgt = case prevDir of
+                                North -> (x+1,y)
+                                South -> (x-1,y)
+                                West -> (x,y+1)
+                                East -> (x,y-1)
+                                _ -> error "impossible"
+                        mResult <- findPathTo' newTgt
+                        pure ((prevDir :) <$> mResult)
 
 findShortestPaths :: Board -> Coord -> Map.Map Coord (Maybe PathInfo)
 findShortestPaths (b@(Board sz mat)) src = findShortestPaths' initQueue Map.empty
@@ -81,11 +105,6 @@ findShortestPaths (b@(Board sz mat)) src = findShortestPaths' initQueue Map.empt
         Nothing -> visited
         -- even the smallest point is unreachable, stop searching
         Just (_, d, _, _) | d >= inf -> visited
-        -- TODO: reaching a target, but should not expaned further
-        -- Just (coord,_,_,newQ) | not (shouldExpand b coord) ->
-        --   let newVisited = Map.insert coord (Just (PathInfo _ _)) visited
-        -- in findShortestPaths' newQ newVisited
-
         Just (coord,dist,v,newQ) ->
             let newVisited = Map.insert coord v visited
                 -- update pqueue
@@ -97,9 +116,12 @@ findShortestPaths (b@(Board sz mat)) src = findShortestPaths' initQueue Map.empt
                     modify (e@(Just (curDist,prevPI)))
                         | not (validTargetCoord b curCoord) = ((), e)
                         | dist+1 < curDist = ((), Just (dist+1, Just (PathInfo [curDir] (dist+1))))
-                        | dist == curDist =
+                        | dist+1 == curDist =
+                            -- if dist+1 == curDist, we must have gone into the
+                            -- previous case therefore the following pattern matching
+                            -- is safe.
                             let Just (PathInfo dirs _) = prevPI
-                            in ((), Just (dist, Just (PathInfo (curDir:dirs) dist)))
+                            in ((), Just (dist+1, Just (PathInfo (curDir:dirs) (dist+1))))
                         | otherwise = ((), e)
             in findShortestPaths' newQ2 newVisited
 

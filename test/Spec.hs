@@ -6,6 +6,8 @@ import Vindinium.Board.Summary
 import qualified Data.IntMap as IM
 import Control.Monad
 import Data.List
+import Data.Maybe
+import System.Random.MWC
 
 {-# ANN module "HLint: ignore Redundant do" #-}
 {-# ANN module "HLint: ignore Avoid lambda" #-}
@@ -31,6 +33,9 @@ boardSample = parseBoard 14 $ concat
 
 main :: IO ()
 main = hspec $ do
+    -- create a random generator for testing
+    rng <- runIO createSystemRandom
+
     describe "Vindinium.Board" $ do
         it "reads right hero positions" $ do
             (boardSample `atCoord` (3,3)) `shouldBe` HeroTile 1
@@ -42,11 +47,19 @@ main = hspec $ do
             forM_ [(x,y) | x <- [0..13], y <- [0..13]] $ \(x,y) -> do
                 case findPathTo spi (x,y) of
                     Nothing -> () `shouldBe` () -- nothing to expect ..
-                    Just dirs ->
+                    Just dirs -> do
                         let finalPos = foldM (\c d -> applyDir' boardSample d c) srcCoord dirs
-                            -- heros cannot step into things like taverns and mines
-                            -- so we just check if the thing we want is nearby (distance <=1)
-                        in ((<= 1) . coordDist (x,y)) <$> finalPos `shouldBe` Just True
+                        -- heros cannot step into things like taverns and mines
+                        -- so we just check if the thing we want is nearby (distance <=1)
+                        ((<= 1) . coordDist (x,y)) <$> finalPos `shouldBe` Just True
+                        -- randomly choose 5 ways going to the destionation and try again
+                        void . replicateM 5 $ do
+                            mpath <- findRandomPathTo rng spi (x,y)
+                            mpath `shouldSatisfy` isJust
+                            let Just path = mpath
+                                finalPos' = foldM (\c d -> applyDir' boardSample d c) srcCoord path
+                            ((<= 1) . coordDist (x,y)) <$> finalPos' `shouldBe` Just True
+
     describe "Vindinium.Board.Summary" $ do
         it "gives correct summary" $ do
             let s = summarize boardSample
