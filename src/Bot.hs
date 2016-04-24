@@ -13,6 +13,7 @@ import Data.Default
 import Data.List
 import Control.Monad.Random
 import Data.Universe
+import System.Random.MWC
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
 
@@ -20,7 +21,16 @@ data MyState = VState
   { vStarted :: Bool
   , vSummary :: Summary
   , vShortestPathInfo :: ShortestPathInfo
-  }  deriving (Show)
+  , vGen :: GenIO
+  }
+
+instance Show MyState where
+    show s = "VState "
+          ++ "{ vStarted: " ++ show (vStarted s)
+          ++ ", vSummary: " ++ show (vSummary s)
+          ++ ", vShortestPathInfo: " ++ show (vShortestPathInfo s)
+          ++ ", vGen: " ++ "<hidden>"
+          ++ "}"
 
 instance Default MyState where
     -- these 2 pieces of info (set to error)
@@ -29,15 +39,17 @@ instance Default MyState where
             False
             (error "summary not available")
             (error "spi not available")
+            (error "random generator not available")
 
 myPP :: VPreprocessor MyState
 myPP vs state = do
-    unless (vStarted vs) $
+    unless (vStarted vs) $ do
+        gen <- io createSystemRandom
         putVState vs
           { vStarted = True
           , vSummary = summarize (gameBoard . stateGame $ state)
+          , vGen = gen
           }
-
     -- do path finding
     modifyVState
         (\s -> let board = gameBoard . stateGame $ state
