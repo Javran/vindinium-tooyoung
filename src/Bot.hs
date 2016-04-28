@@ -14,21 +14,25 @@ import Data.List
 import Control.Monad.Random
 import Data.Universe
 import System.Random.MWC
+import qualified Data.Array as Arr
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
 
 data MyState = VState
   { vStarted :: Bool
   , vSummary :: Summary
-  , vShortestPathInfo :: ShortestPathInfo
+  , vShortestPathInfoArr :: Arr.Array Int ShortestPathInfo
   , vGen :: GenIO
   }
+
+vShortestPathInfo :: MyState -> ShortestPathInfo
+vShortestPathInfo s = vShortestPathInfoArr s Arr.! 0
 
 instance Show MyState where
     show s = "VState "
           ++ "{ vStarted: " ++ show (vStarted s)
           ++ ", vSummary: " ++ show (vSummary s)
-          ++ ", vShortestPathInfo: " ++ show (vShortestPathInfo s)
+          ++ ", vShortestPathInfo: " ++ show (vShortestPathInfoArr s)
           ++ ", vGen: " ++ "<hidden>"
           ++ "}"
 
@@ -40,6 +44,11 @@ instance Default MyState where
             (error "summary not available")
             (error "spi not available")
             (error "random generator not available")
+
+calcShortestPathInfoArr :: Board -> [Coord] -> Arr.Array Int ShortestPathInfo
+calcShortestPathInfoArr board coords
+    | length coords == 4 = Arr.listArray (0,3) (map (calcShortestPathInfo board) coords)
+    | otherwise = error "coords must be a list of 4 elements"
 
 myPP :: VPreprocessor MyState
 myPP vs state = do
@@ -53,8 +62,9 @@ myPP vs state = do
     -- do path finding
     modifyVState
         (\s -> let board = gameBoard . stateGame $ state
-                   (Pos coord) = heroPos . stateHero $ state
-               in s { vShortestPathInfo = calcShortestPathInfo board coord })
+                   getCoord (Pos v) = v
+                   coords = map (getCoord . heroPos) (gameHeroes . stateGame $ state) :: [Coord]
+               in s { vShortestPathInfoArr = calcShortestPathInfoArr board coords })
 
 myBot :: VPlanner MyState
 myBot =
