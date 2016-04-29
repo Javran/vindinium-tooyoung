@@ -12,12 +12,16 @@ import Control.Monad
 import Data.Default
 import Data.List
 import Control.Monad.Random
+import Data.Monoid
 import Data.Universe
-import qualified Data.IntMap as IM
+import qualified Data.IntMap.Strict as IM
 import System.Random.MWC
+import Control.Arrow
 import qualified Data.Array as Arr
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
+{-# ANN module "HLint: ignore Avoid lambda" #-}
+{-# ANN module "HLint: ignore Use head" #-}
 
 type VWeightedPlanner s = s -> GameState -> Vdm s (Maybe (Dir, Double))
 
@@ -40,7 +44,7 @@ calcEnvEmergency ms gs = (fromIntegral heroHp :: Double)
     heroHp = heroLife . stateHero $ gs :: Int
     -- remove the first one, which is our bot
     opponents = tail . gameHeroes . stateGame $ gs
-    spi = vShortestPathInfo ms
+    spi = myShortestPathInfo gs ms
     posToCoord (Pos coord) = coord
     opponentCoords = map (posToCoord . heroPos) opponents
     -- need all opponents to be reachable -- we assume this is true.
@@ -65,16 +69,123 @@ data MyState = VState
   , vShortestPathInfoArr :: Arr.Array Int ShortestPathInfo
   , vSafeShortestPathInfoArr :: Arr.Array Int ShortestPathInfo
   , vGen :: GenIO
+  , vAutoAdjustedParam :: AutoAdjustedParam
   }
 
-vShortestPathInfo :: MyState -> ShortestPathInfo
-vShortestPathInfo s = vShortestPathInfoArr s Arr.! 0
+data AutoAdjustedParam = AAP
+  { -- number of rounds before expiration
+    aapExpireIn :: Int
+    -- partial function: input = 1..2
+  , aapHealthToGold :: IM.IntMap Double
+    -- partial function: input = 1..6
+  , aapDistToGold :: IM.IntMap Double
+  , aapLastMineCounts :: [Int]
+  }
+
+instance Default AutoAdjustedParam where
+    def = AAP
+        { aapExpireIn = 10
+        , aapHealthToGold = defHealthToGold
+        , aapDistToGold = defDistToGold
+        , aapLastMineCounts = replicate 4 0
+        }
+
+nextAAP :: MyState -> GameState -> AutoAdjustedParam -> AutoAdjustedParam
+nextAAP mState gState aap
+    | expire <= 0 = forceNextAAP mState gState aap
+    | otherwise = aap { aapExpireIn = expire }
+  where
+    expire = aapExpireIn aap - 1
+
+-- first map: health to gold, second map: dist to gold
+-- "Dual" is applied so that function composes from left to right
+type ParamModifier = Dual (Endo (IM.IntMap Double, IM.IntMap Double))
+
+-- force evaluating parameters, expire counter will be refreshed as well.
+forceNextAAP :: MyState -> GameState -> AutoAdjustedParam -> AutoAdjustedParam
+forceNextAAP _ gState aap = aap
+    { aapExpireIn = 10
+    , aapLastMineCounts = currentMineCounts
+    , aapHealthToGold = newHtG
+    , aapDistToGold = newDtG
+    }
+  where
+    (newHtG, newDtG) = appEndo modifier (aapHealthToGold aap, aapDistToGold aap)
+      where
+        modifier = getDual . mconcat $ [evolLeaderMod, evolMineDiffMod, evolMineObtainMod]
+
+    currentGoldInfo = map (heroId &&& heroGold) . gameHeroes . stateGame $ gState
+    (currentGoldLeader, _) = maximumBy (compare `on` snd) currentGoldInfo
+
+    -- Endo (IntMap Double, IntMap Double):
+    -- an endofunction that modifies the parameter table
+    mkMod :: (a -> a) -> Dual (Endo a)
+    mkMod = Dual . Endo
+
+    evolLeaderMod :: ParamModifier
+    evolLeaderMod
+        | currentGoldLeader == 0 =
+            foldMap mkMod
+              [ first $ \htg ->
+                        IM.adjust (* 2) 2
+                      . IM.adjust (* 2) 1
+                      $ htg
+              , second $ \dtg ->
+                         IM.adjust (* 2) 2
+                       . IM.adjust (* 2) 1
+                       $ dtg
+              ]
+        | otherwise = mempty
+
+    -- find_ :: Int -> IM.IntMap a -> a
+    -- find_ ind = fromJust . IM.lookup ind
+    currentMineCounts = map heroMineCount . gameHeroes . stateGame $ gState
+    currentMineDiffs = zipWith (\a b -> a - b) currentMineCounts (aapLastMineCounts aap)
+    (currentMineDiffLeader,_) = maximumBy (compare `on` snd) (zip [0..] currentMineDiffs)
+
+    -- taking more mines
+    evolMineDiffMod :: ParamModifier
+    evolMineDiffMod
+        | currentMineDiffs !! currentMineDiffLeader
+          >= currentMineDiffs !! 0 =
+              foldMap mkMod
+                [ second $ \dtg ->
+                           IM.adjust (* 2) 6
+                         . IM.adjust (* 2) 4
+                         $ dtg
+                ]
+        | otherwise = mempty
+
+    evolMineObtainMod :: ParamModifier
+    evolMineObtainMod
+        | head currentMineCounts * 5 <= sum (tail currentMineCounts) =
+            foldMap mkMod
+              [ second $ \dtg ->
+                         IM.adjust (* 1.5) 6
+                       . IM.adjust (* 1.5) 5
+                       $ dtg
+              ]
+        | otherwise = mempty
+
+defHealthToGold :: IM.IntMap Double
+defHealthToGold = IM.fromList [(1,1), (2,2)]
+
+defDistToGold :: IM.IntMap Double
+defDistToGold = IM.fromList
+    [ (1, 10)
+    , (2, 20)
+    , (3, 5)
+    , (4, 5)
+    , (5, 15)
+    , (6, 29) ]
+
+myShortestPathInfo :: GameState -> MyState -> ShortestPathInfo
+myShortestPathInfo gs s = vShortestPathInfoArr s Arr.! ((heroId . stateHero $ gs) - 1)
 
 instance Show MyState where
     show s = "VState "
           ++ "{ vStarted: " ++ show (vStarted s)
           ++ ", vSummary: " ++ show (vSummary s)
-          ++ ", vShortestPathInfo: " ++ show (vShortestPathInfoArr s)
           ++ ", vGen: " ++ "<hidden>"
           ++ "}"
 
@@ -87,6 +198,7 @@ instance Default MyState where
             (error "spi not available")
             (error "safe spi not available")
             (error "random generator not available")
+            def
 
 calcShortestPathInfoArr :: Board -> [Coord] -> Arr.Array Int ShortestPathInfo
 calcShortestPathInfoArr board coords
@@ -102,14 +214,16 @@ myPP vs state = do
           , vSummary = summarize (gameBoard . stateGame $ state)
           , vGen = gen
           }
-    -- do path finding
+    -- do path finding and other kinds of preprocessing
     modifyVState
         (\s -> let board = gameBoard . stateGame $ state
                    maskedBoard = getMaskedBoard (vSummary s) board
                    getCoord (Pos v) = v
                    coords = map (getCoord . heroPos) (gameHeroes . stateGame $ state) :: [Coord]
                in s { vShortestPathInfoArr = calcShortestPathInfoArr board coords
-                    , vSafeShortestPathInfoArr = calcShortestPathInfoArr maskedBoard coords})
+                    , vSafeShortestPathInfoArr = calcShortestPathInfoArr maskedBoard coords
+                    , vAutoAdjustedParam = nextAAP s state (vAutoAdjustedParam s)
+                    })
 
 myBot :: MyPlanner
 myBot =
@@ -118,14 +232,18 @@ myBot =
     healthMaintainPlanner `composePlanner`
     mineObtainPlanner
 
+-- quick response planner
+myBot2 :: MyPlanner
+myBot2 = undefined
+
 headToClosestOf :: [Coord] -> MyPlanner
 headToClosestOf [] _ _ = do
     io $ putStrLn "headToClosestOf: no candidate available"
     pure Nothing
-headToClosestOf cs@(_:_) vstate _ = do
+headToClosestOf cs@(_:_) vstate gstate = do
     -- NOTE: make sure fromJust is safe
     -- INVARIANT: cs is not empty (guaranteed by pattern matching)
-    let spi = vShortestPathInfo vstate
+    let spi = myShortestPathInfo gstate vstate
         getDist c = piDist (fromJust (unsafeIndex spi c))
         target = minimumBy (compare `on` getDist) cs
         pathM = findPathTo spi target
@@ -155,6 +273,9 @@ fullRecoverPlannerWithThreshold hpThres _ gstate = do
                         , let c = applyDir dir hPos
                         , Just TavernTile == atCoordSafe board c
                         ]
+    io $ do
+        print hero
+        print (gameHeroes . stateGame $ gstate)
     if heroLife hero <= hpThres && not (null nearbyTaverns)
        then do
           io $ do
@@ -170,7 +291,7 @@ healthMaintainPlanner :: MyPlanner
 healthMaintainPlanner vstate gstate = do
     let board = gameBoard . stateGame $ gstate
         hero = stateHero gstate
-        spi = vShortestPathInfo vstate
+        spi = myShortestPathInfo gstate vstate
     if heroLife hero <= 20
        then do
           io $ putStrLn "Low health, need to recover."
@@ -190,7 +311,7 @@ mineObtainPlanner vstate gstate = do
     -- find closest not-obtained mine
     let board = gameBoard . stateGame $ gstate
         hero = stateHero gstate
-        spi = vShortestPathInfo vstate
+        spi = myShortestPathInfo gstate vstate
         targetMines = filter (\coord -> case atCoord board coord of
                                   MineTile s
                                       | s /= Just (heroId hero)
