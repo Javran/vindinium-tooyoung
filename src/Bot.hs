@@ -13,15 +13,57 @@ import Data.Default
 import Data.List
 import Control.Monad.Random
 import Data.Universe
+import qualified Data.IntMap as IM
 import System.Random.MWC
 import qualified Data.Array as Arr
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
 
+type VWeightedPlanner s = s -> GameState -> Vdm s (Maybe (Dir, Double))
+
+type MyPlanner = VPlanner MyState
+type MyWeightedPlanner = VWeightedPlanner MyState
+
+-- run weighted planners in sequence, and pick one with maximum weight
+pickOptimalPlan :: [VWeightedPlanner s] -> VPlanner s
+pickOptimalPlan ps myState gState = do
+    plans <- catMaybes <$> mapM (\p -> p myState gState) ps
+    case plans of
+        [] -> pure Nothing
+        _ -> let (optimal,_) = maximumBy (compare `on` snd) plans
+             in pure (Just optimal)
+
+calcEnvEmergency :: MyState -> GameState -> Double
+calcEnvEmergency ms gs = (fromIntegral heroHp :: Double)
+                       / fromIntegral (20 * minimum opponentDistances)
+  where
+    heroHp = heroLife . stateHero $ gs :: Int
+    -- remove the first one, which is our bot
+    opponents = tail . gameHeroes . stateGame $ gs
+    spi = vShortestPathInfo ms
+    posToCoord (Pos coord) = coord
+    opponentCoords = map (posToCoord . heroPos) opponents
+    -- need all opponents to be reachable -- we assume this is true.
+    opponentDistances =
+        map (\coord -> piDist
+                     . fromJust
+                     $ spi Arr.! coord) opponentCoords :: [Int]
+
+-- mask spawning point of opponents as wood tiles
+getMaskedBoard :: Summary -> Board -> Board
+getMaskedBoard s (Board sz b) = Board sz newB
+  where
+    newB = b Arr.// zip opponentSpawningPoints (repeat WoodTile)
+    opponentSpawningPoints =
+          IM.elems
+        . IM.delete 0
+        $ sSpawnPoints s
+
 data MyState = VState
   { vStarted :: Bool
   , vSummary :: Summary
   , vShortestPathInfoArr :: Arr.Array Int ShortestPathInfo
+  , vSafeShortestPathInfoArr :: Arr.Array Int ShortestPathInfo
   , vGen :: GenIO
   }
 
@@ -43,6 +85,7 @@ instance Default MyState where
             False
             (error "summary not available")
             (error "spi not available")
+            (error "safe spi not available")
             (error "random generator not available")
 
 calcShortestPathInfoArr :: Board -> [Coord] -> Arr.Array Int ShortestPathInfo
@@ -62,18 +105,20 @@ myPP vs state = do
     -- do path finding
     modifyVState
         (\s -> let board = gameBoard . stateGame $ state
+                   maskedBoard = getMaskedBoard (vSummary s) board
                    getCoord (Pos v) = v
                    coords = map (getCoord . heroPos) (gameHeroes . stateGame $ state) :: [Coord]
-               in s { vShortestPathInfoArr = calcShortestPathInfoArr board coords })
+               in s { vShortestPathInfoArr = calcShortestPathInfoArr board coords
+                    , vSafeShortestPathInfoArr = calcShortestPathInfoArr maskedBoard coords})
 
-myBot :: VPlanner MyState
+myBot :: MyPlanner
 myBot =
     fullRecoverPlanner `composePlanner`
     avoidPlayerPlanner `composePlanner`
     healthMaintainPlanner `composePlanner`
     mineObtainPlanner
 
-headToClosestOf :: [Coord] -> VPlanner MyState
+headToClosestOf :: [Coord] -> MyPlanner
 headToClosestOf [] _ _ = do
     io $ putStrLn "headToClosestOf: no candidate available"
     pure Nothing
@@ -100,8 +145,8 @@ composePlanner p1 p2 vstate gstate = do
             p2 vstate' gstate
         Just _ -> pure r1
 
-fullRecoverPlanner :: VPlanner MyState
-fullRecoverPlanner _ gstate = do
+fullRecoverPlannerWithThreshold :: Int -> MyPlanner
+fullRecoverPlannerWithThreshold hpThres _ gstate = do
     let board = gameBoard . stateGame $ gstate
         hero = stateHero gstate
         (Pos hPos) = heroPos hero
@@ -110,7 +155,7 @@ fullRecoverPlanner _ gstate = do
                         , let c = applyDir dir hPos
                         , Just TavernTile == atCoordSafe board c
                         ]
-    if heroLife hero <= 95 && not (null nearbyTaverns)
+    if heroLife hero <= hpThres && not (null nearbyTaverns)
        then do
           io $ do
               putStrLn $ "hero life: " ++ show (heroLife hero)
@@ -118,7 +163,10 @@ fullRecoverPlanner _ gstate = do
           pure (Just (snd (head nearbyTaverns)))
        else pure Nothing
 
-healthMaintainPlanner :: VPlanner MyState
+fullRecoverPlanner :: MyPlanner
+fullRecoverPlanner = fullRecoverPlannerWithThreshold 95
+
+healthMaintainPlanner :: MyPlanner
 healthMaintainPlanner vstate gstate = do
     let board = gameBoard . stateGame $ gstate
         hero = stateHero gstate
@@ -137,7 +185,7 @@ healthMaintainPlanner vstate gstate = do
           headToClosestOf taverns vstate gstate
        else pure Nothing
 
-mineObtainPlanner :: VPlanner MyState
+mineObtainPlanner :: MyPlanner
 mineObtainPlanner vstate gstate = do
     -- find closest not-obtained mine
     let board = gameBoard . stateGame $ gstate
@@ -155,7 +203,7 @@ mineObtainPlanner vstate gstate = do
     headToClosestOf targetMines vstate gstate
 
 -- TODO: take wood cells into account
-avoidPlayerPlanner :: VPlanner MyState
+avoidPlayerPlanner :: MyPlanner
 avoidPlayerPlanner vstate gstate = do
     -- TODO: escape path need to be vaild
     let board = gameBoard . stateGame $ gstate
