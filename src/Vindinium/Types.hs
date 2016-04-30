@@ -25,8 +25,8 @@ data Settings = Settings
   } deriving (Show, Eq)
 
 data GameMode
-  = GMTraining (Maybe Int) (Maybe Board)
-  | GMArena
+  = GMTraining (Maybe Int) (Maybe Board) String
+  | GMArena String
     deriving (Show)
 
 data GameState = GState

@@ -28,31 +28,6 @@ type VWeightedPlanner s = s -> GameState -> Vdm s (Maybe (Dir, Double))
 type MyPlanner = VPlanner MyState
 type MyWeightedPlanner = VWeightedPlanner MyState
 
--- run weighted planners in sequence, and pick one with maximum weight
-pickOptimalPlan :: [VWeightedPlanner s] -> VPlanner s
-pickOptimalPlan ps myState gState = do
-    plans <- catMaybes <$> mapM (\p -> p myState gState) ps
-    case plans of
-        [] -> pure Nothing
-        _ -> let (optimal,_) = maximumBy (compare `on` snd) plans
-             in pure (Just optimal)
-
-calcEnvEmergency :: MyState -> GameState -> Double
-calcEnvEmergency ms gs = (fromIntegral heroHp :: Double)
-                       / fromIntegral (20 * minimum opponentDistances)
-  where
-    heroHp = heroLife . stateHero $ gs :: Int
-    -- remove the first one, which is our bot
-    opponents = tail . gameHeroes . stateGame $ gs
-    spi = myShortestPathInfo gs ms
-    posToCoord (Pos coord) = coord
-    opponentCoords = map (posToCoord . heroPos) opponents
-    -- need all opponents to be reachable -- we assume this is true.
-    opponentDistances =
-        map (\coord -> piDist
-                     . fromJust
-                     $ spi Arr.! coord) opponentCoords :: [Int]
-
 -- mask spawning point of opponents as wood tiles
 getMaskedBoard :: Summary -> Board -> Board
 getMaskedBoard s (Board sz b) = Board sz newB
@@ -232,10 +207,6 @@ myBot =
     healthMaintainPlanner `composePlanner`
     mineObtainPlanner
 
--- quick response planner
-myBot2 :: MyPlanner
-myBot2 = undefined
-
 headToClosestOf :: [Coord] -> MyPlanner
 headToClosestOf [] _ _ = do
     io $ putStrLn "headToClosestOf: no candidate available"
@@ -273,9 +244,6 @@ fullRecoverPlannerWithThreshold hpThres _ gstate = do
                         , let c = applyDir dir hPos
                         , Just TavernTile == atCoordSafe board c
                         ]
-    io $ do
-        print hero
-        print (gameHeroes . stateGame $ gstate)
     if heroLife hero <= hpThres && not (null nearbyTaverns)
        then do
           io $ do

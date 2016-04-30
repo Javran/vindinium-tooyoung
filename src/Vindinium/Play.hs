@@ -15,11 +15,11 @@ playGame :: Typeable s => GameMode -> VPreprocessor s -> VPlanner s -> Vdm s s
 playGame gm pp b = do
     url <- startUrl gm
     let obj = case gm of
-            GMTraining mt mb ->
+            GMTraining mt mb _ ->
                object ( maybe [] (\i -> [("turns", toJSON i)]) mt
                      <> maybe [] (\bm -> [("map",  toJSON bm)]) mb
                       )
-            GMArena -> object []
+            GMArena _ -> object []
     s <- sendRequest url obj
     io $ do
         putStrLn $ "url is: " ++ (T.unpack . stateViewUrl $ s)
@@ -48,8 +48,8 @@ playLoop pp bot state =
 startUrl :: GameMode -> Vdm s T.Text
 startUrl gm = do
     let v = case gm of
-              GMTraining _ _ -> "training"
-              GMArena        -> "arena"
+              GMTraining {} -> "training"
+              GMArena _       -> "arena"
     url <- vcUrl <$> askVConfig
     return $ url <> "/api/" <> v
 

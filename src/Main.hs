@@ -5,6 +5,7 @@ import Options.Applicative
 import Vindinium
 import Vindinium.Vdm
 import Bot
+import Bot2
 import Data.Default
 
 import qualified Data.Text as T
@@ -19,9 +20,10 @@ getSettings = do
 trainingCmd :: Parser GameMode
 trainingCmd = GMTraining <$> optional (option auto (long "turns"))
                          <*> pure Nothing
+                         <*> strOption (long "bot")
 
 arenaCmd :: Parser GameMode
-arenaCmd = pure GMArena
+arenaCmd = GMArena <$> strOption (long "bot")
 
 cmd :: Parser GameMode
 cmd = subparser
@@ -31,10 +33,23 @@ cmd = subparser
         ( progDesc "Run bot in arena mode" ))
     )
 
+selectedBot :: GameMode -> String
+selectedBot gm = case gm of
+    GMTraining _ _ b -> b
+    GMArena b -> b
+
 runCmd :: Settings -> GameMode -> IO ()
 runCmd s gm = do
     let cfg = (vdmConfig <$> settingsKey <*> settingsUrl) s
-    state <- runVdm cfg def $ playGame gm myPP myBot
+        bDesc = selectedBot gm
+    bot <- case bDesc of
+        "qr" -> pure myBot2
+        "simpl" -> pure myBot
+        _ -> do
+            putStrLn $ "unknown bot: " ++ bDesc
+            putStrLn "using simple"
+            pure myBot
+    state <- runVdm cfg def $ playGame gm myPP bot
     print state
 
 main :: IO ()
