@@ -32,9 +32,10 @@ calcEnvEmergency :: MyState -> GameState -> Double
 calcEnvEmergency ms gs = (fromIntegral heroHp :: Double)
                        / fromIntegral (20 * minimum opponentDistances)
   where
+    hero = stateHero gs
     heroHp = heroLife . stateHero $ gs :: Int
     -- remove the first one, which is our bot
-    opponents = tail . gameHeroes . stateGame $ gs
+    opponents = filter (\x -> heroId x /= heroId hero) . gameHeroes . stateGame $ gs
     spi = myShortestPathInfo gs ms
     posToCoord (Pos coord) = coord
     opponentCoords = map (posToCoord . heroPos) opponents
@@ -155,7 +156,9 @@ healthMaintainPlannerW vstate gstate = do
         hToG2 = find 2 (aapHealthToGold aap)
         dToG2 = find 2 (aapDistToGold aap)
         envEmergency = calcEnvEmergency vstate gstate
-        score = envEmergency * dToG2 + fromIntegral (50 - heroLife hero) * hToG2
+        score = if heroLife hero <= 40
+                   then 9999
+                   else envEmergency * dToG2 + fromIntegral (50 - heroLife hero) * hToG2
 
     io $ putStrLn $ "healthMaintain with score " ++ show score
     pure (dResult >>= \(d,_) -> Just (d,score))

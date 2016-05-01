@@ -102,12 +102,12 @@ forceNextAAP _ gState aap = aap
         | currentGoldLeader == 0 =
             foldMap mkMod
               [ first $ \htg ->
-                        IM.adjust (* 2) 2
-                      . IM.adjust (* 2) 1
+                        IM.adjust (+ 10) 2
+                      . IM.adjust (+ 10) 1
                       $ htg
               , second $ \dtg ->
-                         IM.adjust (* 2) 2
-                       . IM.adjust (* 2) 1
+                         IM.adjust (+ 10) 2
+                       . IM.adjust (+ 10) 1
                        $ dtg
               ]
         | otherwise = mempty
@@ -125,8 +125,8 @@ forceNextAAP _ gState aap = aap
           >= currentMineDiffs !! 0 =
               foldMap mkMod
                 [ second $ \dtg ->
-                           IM.adjust (* 2) 6
-                         . IM.adjust (* 2) 4
+                           IM.adjust (+ 10) 6
+                         . IM.adjust (+ 10) 4
                          $ dtg
                 ]
         | otherwise = mempty
@@ -136,8 +136,8 @@ forceNextAAP _ gState aap = aap
         | head currentMineCounts * 5 <= sum (tail currentMineCounts) =
             foldMap mkMod
               [ second $ \dtg ->
-                         IM.adjust (* 1.5) 6
-                       . IM.adjust (* 1.5) 5
+                         IM.adjust (+ 8) 6
+                       . IM.adjust (+ 8) 5
                        $ dtg
               ]
         | otherwise = mempty
