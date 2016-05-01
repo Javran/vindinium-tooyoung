@@ -22,11 +22,12 @@ type Url = Text
 data Settings = Settings
   { settingsKey :: Key
   , settingsUrl :: Url
+  , settingsBot :: String
   } deriving (Show, Eq)
 
 data GameMode
-  = GMTraining (Maybe Int) (Maybe Board) String
-  | GMArena String
+  = GMTraining (Maybe Int) (Maybe Board)
+  | GMArena
     deriving (Show)
 
 data GameState = GState

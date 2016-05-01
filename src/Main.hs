@@ -14,16 +14,15 @@ type Cmd = (Settings, GameMode)
 
 getSettings :: IO Settings
 getSettings = do
-    [keyRaw,urlRaw] <- take 2 . lines <$> readFile "settings.conf"
-    return (Settings (T.pack keyRaw) (T.pack urlRaw))
+    [keyRaw,urlRaw,bot] <- take 3 . lines <$> readFile "settings.conf"
+    return (Settings (T.pack keyRaw) (T.pack urlRaw) bot)
 
 trainingCmd :: Parser GameMode
 trainingCmd = GMTraining <$> optional (option auto (long "turns"))
                          <*> pure Nothing
-                         <*> strOption (long "bot")
 
 arenaCmd :: Parser GameMode
-arenaCmd = GMArena <$> strOption (long "bot")
+arenaCmd = pure GMArena
 
 cmd :: Parser GameMode
 cmd = subparser
@@ -33,15 +32,10 @@ cmd = subparser
         ( progDesc "Run bot in arena mode" ))
     )
 
-selectedBot :: GameMode -> String
-selectedBot gm = case gm of
-    GMTraining _ _ b -> b
-    GMArena b -> b
-
 runCmd :: Settings -> GameMode -> IO ()
 runCmd s gm = do
     let cfg = (vdmConfig <$> settingsKey <*> settingsUrl) s
-        bDesc = selectedBot gm
+        bDesc = settingsBot s
     bot <- case bDesc of
         "qr" -> pure myBot2
         "simple" -> pure myBot
