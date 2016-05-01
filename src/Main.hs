@@ -44,7 +44,7 @@ runCmd s gm = do
         bDesc = selectedBot gm
     bot <- case bDesc of
         "qr" -> pure myBot2
-        "simpl" -> pure myBot
+        "simple" -> pure myBot
         _ -> do
             putStrLn $ "unknown bot: " ++ bDesc
             putStrLn "using simple"
